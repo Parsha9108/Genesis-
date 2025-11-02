@@ -16,7 +16,6 @@ from BaseApp.services.webapp_services.user_register_login_services.verify_reset_
 from BaseApp.services.webapp_services.user_register_login_services.webuser_profile_update import update_web_user
 from BaseApp.services.webapp_services.user_register_login_services.get_all_webusers import get_all_users
 from BaseApp.services.webapp_services.user_register_login_services.delete_webuser import delete_web_user
-from BaseApp.services.webapp_services.dashboard_service import web_dashboard
 from BaseApp.services.webapp_services.user_register_login_services.webuser_logout import logout_view
 
 from BaseApp.services.webapp_services.user_permissions.get_assigned_permissions import get_user_permissions
@@ -96,6 +95,9 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
+
+# Custom Imports
+from BaseApp.utils import *
 
 logger = logging.getLogger(__name__)
 
@@ -201,11 +203,6 @@ def get_all_user_details(request):
 def delete_user_details(request,id):
     return delete_web_user(request,id)
 
-@api_view(['GET'])
-@authentication_classes([JWTCookieAuthentication])
-@permission_classes([IsAuthenticated])
-def dashboard_view(request):
-    return web_dashboard(request)  # Assuming this function handles the dashboard view logic
 
 @api_view(['POST'])
 @authentication_classes([JWTCookieAuthentication])
@@ -537,3 +534,10 @@ def mark_all_alerts_read_view(request):
 @permission_classes([IsAuthenticated])
 def unread_alerts_count_view(request):
    return get_unread_alerts_count(request)
+
+@api_view(['GET'])
+@authentication_classes([JWTCookieAuthentication])
+@permission_classes([IsAuthenticated])
+@check_permission
+def test_request_user(request):
+    return JsonResponse({"request.user": str(request.user)})

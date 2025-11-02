@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings as SettingsIcon, Users, Shield, ArrowRight } from 'lucide-react';
+import { Settings as SettingsIcon, Users, Shield, ArrowRight, UserRoundPen, DoorClosedLocked} from 'lucide-react';
 import { useDocumentTitle } from "../../Hooks/useDocumentTitle";
 import { useGetUserPermissionsQuery } from '../../redux/permissionApiSlice';
 import { useAuth } from '../../Contexts/AuthContext';
@@ -27,12 +27,12 @@ const Settings = ({ isDarkMode }) => {
 
   const settingsOptions = [
     {
-      id: 'custom-groups',
-      title: 'Custom Groups',
+      id: 'user-profile',
+      title: 'User Profile',
       description: 'Create and manage device groups for better organization',
-      icon: Users,
-      requiredPermission: 'access_custom_group_feature',
-      path: '/custom-groups',
+      icon: UserRoundPen,
+      // requiredPermission: 'access_custom_group_feature',
+      path: '/profile',
       color: 'green',
       features: [
         'Create custom device groups',
@@ -40,10 +40,22 @@ const Settings = ({ isDarkMode }) => {
       ]
     },
     {
-      id: 'admin-panel',
-      title: 'Admin Panel',
+      id: 'roles',
+      title: 'Roles',
       description: 'User management and system configuration settings',
-      icon: Shield,
+      icon: DoorClosedLocked,
+      path: '/profile',
+      color: 'blue',
+      features: [
+        'User account management',
+        'Manage user permissions',
+      ]
+    },
+    {
+      id: 'user-management',
+      title: 'Users',
+      description: 'User management and system configuration settings',
+      icon: Users,
       path: '/profile',
       color: 'blue',
       features: [
