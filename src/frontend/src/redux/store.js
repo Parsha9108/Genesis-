@@ -21,6 +21,9 @@ import notificationReducer from './notificationSlice';
 import { userApiSlice } from './userApiSlice';
 import { permissionApi } from './permissionApiSlice';
 
+// User Module Permissions Reducers
+import { userModPermSlice } from './userModulePermission';
+
 // Create app reducer first
 const appReducer = combineReducers({
   notifications: notificationReducer,

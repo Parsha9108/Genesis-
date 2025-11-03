@@ -40,7 +40,7 @@ const Settings = ({ isDarkMode }) => {
       ]
     },
     {
-      id: 'roles',
+      id: 'rbac',
       title: 'Roles',
       description: 'User management and system configuration settings',
       icon: DoorClosedLocked,
@@ -52,7 +52,7 @@ const Settings = ({ isDarkMode }) => {
       ]
     },
     {
-      id: 'user-management',
+      id: 'users_management',
       title: 'Users',
       description: 'User management and system configuration settings',
       icon: Users,
@@ -77,6 +77,8 @@ const Settings = ({ isDarkMode }) => {
     }
     navigate(option.path);
   };
+
+  
 
   // Filter options:
   const visibleOptions = settingsOptions.filter(option => {
