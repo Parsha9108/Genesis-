@@ -1,38 +1,47 @@
 import { configureStore, combineReducers } from '@reduxjs/toolkit';
 import { persistStore, persistReducer } from 'redux-persist';
 import storage from 'redux-persist/lib/storage';
+import { setupListeners } from '@reduxjs/toolkit/query/react';
 
 // SINGLE UNIFIED API IMPORT
 import { apiSlice } from './apiSlice';
 
-// GROUPS API SLICE (replaces useCustomGroup reducer)
+// GROUPS API SLICE
 import { groupsApiSlice } from './groupsApiSlice';
 
 // FLAG API SLICES
 import { storageFlagApi } from './storageFlagApi';
 import { portFlagApi } from './networkFlagApi';
 
-// **FILTER API SLICES**
+// FILTER API SLICES
 import { alertFilterApi } from './alertFilterApi';
 import { eventLogFilterApi } from './eventLogFilterApi';
 
+// ROLE API SLICE
+import { roleApi } from './roleApiSlice';
+
 // Regular reducers
 import notificationReducer from './notificationSlice';
+import userModPermReducer from './userModulePermission';
 import { userApiSlice } from './userApiSlice';
 import { permissionApi } from './permissionApiSlice';
 
-// Create app reducer first
+// Create app reducer with userModPerm reducer
 const appReducer = combineReducers({
   notifications: notificationReducer,
+  //Added permissionmodule reducer 
+  userModPerm: userModPermReducer,  
   [groupsApiSlice.reducerPath]: groupsApiSlice.reducer,
   [apiSlice.reducerPath]: apiSlice.reducer,
   [userApiSlice.reducerPath]: userApiSlice.reducer,
   [storageFlagApi.reducerPath]: storageFlagApi.reducer,
   [permissionApi.reducerPath]: permissionApi.reducer,
   [portFlagApi.reducerPath]: portFlagApi.reducer,
-  // **FILTER API REDUCERS**
+  // FILTER API REDUCERS
   [alertFilterApi.reducerPath]: alertFilterApi.reducer,
   [eventLogFilterApi.reducerPath]: eventLogFilterApi.reducer,
+  // ROLE API REDUCER
+  [roleApi.reducerPath]: roleApi.reducer,
 });
 
 // ROOT REDUCER WITH AUTO-CLEAR LOGIC
@@ -68,7 +77,7 @@ const persistConfig = {
   key: 'root',
   storage,
   version: 1,
-  whitelist: ['notifications'],
+  whitelist: ['notifications', 'userModPerm'], 
   blacklist: [
     apiSlice.reducerPath,
     groupsApiSlice.reducerPath,
@@ -76,9 +85,9 @@ const persistConfig = {
     portFlagApi.reducerPath,
     userApiSlice.reducerPath,
     permissionApi.reducerPath,
-    // **FILTER API SLICES - DON'T PERSIST API CACHE**
     alertFilterApi.reducerPath,
     eventLogFilterApi.reducerPath,
+    roleApi.reducerPath,
   ],
   
   throttle: 1000,
@@ -119,9 +128,9 @@ export const store = configureStore({
           portFlagApi.reducerPath,
           userApiSlice.reducerPath,
           permissionApi.reducerPath,
-          // **FILTER API SLICES - IGNORED PATHS**
           alertFilterApi.reducerPath,
           eventLogFilterApi.reducerPath,
+          roleApi.reducerPath,
         ],
       },
       immutableCheck: {
@@ -132,9 +141,9 @@ export const store = configureStore({
           portFlagApi.reducerPath,
           userApiSlice.reducerPath,
           permissionApi.reducerPath,
-          // **FILTER API SLICES - IGNORED PATHS**
           alertFilterApi.reducerPath,
           eventLogFilterApi.reducerPath,
+          roleApi.reducerPath,
         ],
       },
     })
@@ -144,9 +153,9 @@ export const store = configureStore({
     .concat(permissionApi.middleware)
     .concat(storageFlagApi.middleware)
     .concat(portFlagApi.middleware)
-    // **FILTER API MIDDLEWARE**
     .concat(alertFilterApi.middleware)
-    .concat(eventLogFilterApi.middleware),
+    .concat(eventLogFilterApi.middleware)
+    .concat(roleApi.middleware),
   
   devTools: process.env.NODE_ENV !== 'production' && {
     name: 'Device Management Store',
@@ -154,6 +163,9 @@ export const store = configureStore({
     traceLimit: 25,
   },
 });
+
+// Setup listeners for RTK Query
+setupListeners(store.dispatch);
 
 export const persistor = persistStore(store, null, () => {
   console.log('Redux store rehydrated successfully');
@@ -185,6 +197,7 @@ if (process.env.NODE_ENV === 'development') {
     const state = store.getState();
     console.log('Store updated:', {
       notifications: state.notifications?.items?.length || 0,
+      userModPerm: state.userModPerm,
       apiCaches: {
         main: 'API cache (not persisted)',
         groups: 'Groups API cache (not persisted)',
@@ -192,15 +205,15 @@ if (process.env.NODE_ENV === 'development') {
         portFlag: 'Port Flag API cache (not persisted)',
         user: 'User API cache (not persisted)',
         permission: 'Permission API cache (not persisted)',
-        // **FILTER API CACHES**
         alertFilter: 'Alert Filter API cache (not persisted)',
         eventLogFilter: 'Event Log Filter API cache (not persisted)',
+        role: 'Role API cache (not persisted)',
       }
     });
   });
 }
 
-// Export API instances for potential manual cache management
+// Export API instances
 export const apis = {
   main: apiSlice,
   groups: groupsApiSlice,
@@ -208,9 +221,9 @@ export const apis = {
   permission: permissionApi,
   storageFlag: storageFlagApi,
   portFlag: portFlagApi,
-  // **FILTER API INSTANCES**
   alertFilter: alertFilterApi,
   eventLogFilter: eventLogFilterApi,
+  role: roleApi,
 };
 
 // Utility function to reset all API caches
@@ -221,10 +234,8 @@ export const resetAllApiCaches = () => {
   store.dispatch(permissionApi.util.resetApiState());
   store.dispatch(storageFlagApi.util.resetApiState());
   store.dispatch(portFlagApi.util.resetApiState());
-  // **RESET FILTER API CACHES**
   store.dispatch(alertFilterApi.util.resetApiState());
   store.dispatch(eventLogFilterApi.util.resetApiState());
-  console.log('All API caches reset including filter APIs');
+  store.dispatch(roleApi.util.resetApiState());
+  console.log('All API caches reset including role and filter APIs');
 };
-
-

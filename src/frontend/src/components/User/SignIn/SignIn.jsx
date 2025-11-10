@@ -6,6 +6,8 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import ReCaptcha from "react-google-recaptcha";
 import { useAuth } from "../../../Contexts/AuthContext";
+import { useDispatch } from "react-redux"; // Added this
+import { setPermissions } from "../../../redux/userModulePermission"; // Added this
 import { useRef, useState } from "react";
 import { useDocumentTitle } from "../../../Hooks/useDocumentTitle";
 import GenesisLogoCard from "../GenesisLogoCard";
@@ -13,6 +15,7 @@ import GenesisLogoCard from "../GenesisLogoCard";
 const SignIn = () => {
   useDocumentTitle("Sign In");
   const { setAuthenticated } = useAuth();
+  const dispatch = useDispatch(); // Added this
   const recaptchaRef = useRef(null);
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
@@ -27,11 +30,12 @@ const SignIn = () => {
       const res = await axios.post("/api/webuser/signin/", values, {
         withCredentials: true,
       });
+      console.log("Login response:", res);
       if (res.status === 200) {
         toast.success(res.data.message || "Login successful!");
         setAuthenticated(true);
 
-        if (res.data.first_time_login) {
+        if (res.data?.first_time_login) {
           navigate("/reset-password/first-time", {
             state: { email: res.data.email },
           });
@@ -39,7 +43,32 @@ const SignIn = () => {
           navigate("/");
         }
       }
-    } catch (error) {
+
+      // Added this to fecth the permissions 
+      try {
+        const permResponse = await axios.get(
+          "/api/webuser/modules/permissions/all",
+          {
+            withCredentials: true,
+          }
+        );
+        console.log("Permissions fetched:", permResponse.data);
+
+        // Dispatch permissions to Redux
+        if (permResponse.data.permissions) {
+          dispatch(setPermissions(permResponse.data.permissions));
+        } else {
+          dispatch(setPermissions(permResponse.data));
+        }
+
+        console.log("Permissions updated in Redux store");
+      } catch (permError) {
+        console.error("Failed to fetch permissions:", permError);
+        toast.warning("Could not load permissions");
+      }
+
+    }
+    catch (error) {
       const errorMessage = error.response?.data?.error;
       if (error.response?.status === 404) {
         if (errorMessage === "User not registered") {
@@ -98,11 +127,10 @@ const SignIn = () => {
                       name="email"
                       id="email"
                       onFocus={() => setFieldTouched("email", false)}
-                      className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white dark:border-gray-600 ${
-                        errors.email && touched.email
+                      className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white dark:border-gray-600 ${errors.email && touched.email
                           ? "border-red-500"
                           : "border-gray-300"
-                      }`}
+                        }`}
                     />
                     {errors.email && touched.email && (
                       <p className="text-red-500 text-xs mt-1">
@@ -127,13 +155,11 @@ const SignIn = () => {
                         id="password"
                         disabled={!isEmailValid}
                         onFocus={() => setFieldTouched("password", false)}
-                        className={`w-full px-4 py-2 pr-10 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white dark:border-gray-600 ${
-                          !isEmailValid ? "bg-gray-100 cursor-not-allowed" : ""
-                        } ${
-                          errors.password && touched.password
+                        className={`w-full px-4 py-2 pr-10 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white dark:border-gray-600 ${!isEmailValid ? "bg-gray-100 cursor-not-allowed" : ""
+                          } ${errors.password && touched.password
                             ? "border-red-500"
                             : "border-gray-300"
-                        }`}
+                          }`}
                       />
 
                       {/* 👁️ Eye Icon */}
@@ -167,9 +193,8 @@ const SignIn = () => {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className={`w-full bg-[#6366f1] hover:bg-[#6366f1]/80 text-white font-semibold py-3 rounded-md transition-colors ${
-                      isSubmitting ? "opacity-60 cursor-not-allowed" : ""
-                    }`}
+                    className={`w-full bg-[#6366f1] hover:bg-[#6366f1]/80 text-white font-semibold py-3 rounded-md transition-colors ${isSubmitting ? "opacity-60 cursor-not-allowed" : ""
+                      }`}
                   >
                     {isSubmitting ? "Signing in..." : "Sign In"}
                   </button>

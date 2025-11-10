@@ -6,9 +6,12 @@ from django.conf import settings
 from django.core.mail import send_mail
 from datetime import datetime
 import jwt
-
+import logging
+logger=logging.getLogger('agent_monitoring')
 def update_password(request):
+    logger.info(f"Password update request data: {request.data}")
     token = request.query_params.get('token')
+    logger.info(f"Received token: {token}") 
     password = request.data.get('password')
     email = request.data.get('email')
     
@@ -26,6 +29,7 @@ def update_password(request):
             return Response({'error': 'Invalid token or user'}, status=status.HTTP_400_BAD_REQUEST)
 
     elif email:
+        logger.info(f"First-time password set for email: {email}")
         # First-time password set flow (no token, use email)
         try:
             user = WebUser.objects.get(email=email)
@@ -37,11 +41,13 @@ def update_password(request):
 
     if not password:
         return Response({'error': 'New password is required'}, status=status.HTTP_400_BAD_REQUEST)
-
+    
+    logger.info(f"Updating password for user ID: {user.username}")
     user.password = make_password(password)
     user.save()
+    logger.info(f"Password updated successfully for user ID: {user.username}")
     send_password_update_email(user, datetime.now())
-
+    
     # (Optionally) if user.is_first_login: set to False after first password set
     if hasattr(user, 'is_first_login') and user.is_first_login:
         user.is_first_login = False

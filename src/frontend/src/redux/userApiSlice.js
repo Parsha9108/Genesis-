@@ -23,8 +23,10 @@ export const userApiSlice = createApi({
         url: `users/update/${id}/`,
         method: 'PATCH',  
         body: userData
+
       }),
       invalidatesTags: ['WebUser']
+     
     }),
     deleteUser: builder.mutation({
       query: (id) => ({

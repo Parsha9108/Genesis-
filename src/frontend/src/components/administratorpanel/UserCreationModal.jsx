@@ -6,20 +6,17 @@ import {
   EyeIcon,
   EyeSlashIcon,
   ArrowPathIcon,
-  PlusIcon,
-  CheckIcon,
-  XMarkIcon as CloseIcon
 } from '@heroicons/react/24/outline';
+import "../index.css";
 import { ChevronDown } from 'lucide-react';
 import { useCreateUserMutation } from '../../redux/userApiSlice';
-import { useGetUserPermissionsQuery } from '../../redux/permissionApiSlice';
+import { useGetRolesQuery } from '../../redux/roleApiSlice';
 
 // Role Dropdown Component for Creation Modal
-const CreateRoleDropdown = ({ roleChoices, selectedRole, setSelectedRole, isDarkMode, disabled = false }) => {
+const CreateRoleDropdown = ({ roleChoices, selectedRole, setSelectedRole, isDarkMode, disabled = false, isLoading = false }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -31,7 +28,7 @@ const CreateRoleDropdown = ({ roleChoices, selectedRole, setSelectedRole, isDark
   }, []);
 
   const handleToggle = () => {
-    if (!disabled) {
+    if (!disabled && !isLoading) {
       setIsOpen(!isOpen);
     }
   };
@@ -47,7 +44,7 @@ const CreateRoleDropdown = ({ roleChoices, selectedRole, setSelectedRole, isDark
   };
 
   const getDropdownStyling = () => {
-    if (disabled) {
+    if (disabled || isLoading) {
       return isDarkMode
         ? 'border-gray-700 bg-gray-800 text-gray-500 cursor-not-allowed'
         : 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed';
@@ -60,66 +57,59 @@ const CreateRoleDropdown = ({ roleChoices, selectedRole, setSelectedRole, isDark
 
   return (
     <div className="relative w-full" ref={dropdownRef}>
-      {/* Dropdown button */}
       <button
         type="button"
         onClick={handleToggle}
-        disabled={disabled}
+        disabled={disabled || isLoading}
         className={`flex items-center justify-between w-full px-3 py-1.5 text-sm border rounded-lg cursor-pointer transition-all duration-200 focus:ring-2 focus:ring-blue-500 ${getDropdownStyling()}
           ${isOpen ? 'ring-2 ring-blue-500 ring-opacity-50' : ''}
         `}
       >
         <span className={selectedRole ? '' : 'text-gray-500 dark:text-gray-400'}>
-          {getSelectedLabel()}
+          {isLoading ? 'Loading roles...' : getSelectedLabel()}
         </span>
-        <ChevronDown className={`w-4 h-4 ml-1 transition-transform duration-200 ${isOpen ? 'rotate-180' : 'rotate-0'} ${disabled ? 'opacity-50' : ''}`} />
+        <ChevronDown className={`w-4 h-4 ml-1 transition-transform duration-200 ${isOpen ? 'rotate-180' : 'rotate-0'} ${disabled || isLoading ? 'opacity-50' : ''}`} />
       </button>
 
-      {/* Dropdown menu */}
       <div
         className={`absolute top-full mt-1 w-full rounded-lg shadow-lg border z-50 transition-all duration-200 origin-top
           ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'}
-          ${isOpen && !disabled
+          ${isOpen && !disabled && !isLoading
             ? 'opacity-100 scale-100 translate-y-0'
             : 'opacity-0 scale-95 -translate-y-1 pointer-events-none'
           }
         `}
       >
-        <div className="py-1 max-h-48 overflow-y-auto">
-          {roleChoices.map((role) => (
-            <button
-              key={role.value}
-              type="button"
-              className={`w-full text-left px-3 py-2 text-sm transition-colors duration-150 flex items-center justify-between
-                ${selectedRole === role.value
-                  ? 'bg-blue-500 text-white'
-                  : isDarkMode
-                    ? 'text-gray-200 hover:bg-gray-600'
-                    : 'text-gray-900 hover:bg-gray-100'
-                }`}
-              onClick={() => handleSelect(role.value)}
-            >
-              <span>{role.label}</span>
-              {role.isCustom && (
-                <span className={`text-xs px-1.5 py-0.5 rounded ${
-                  selectedRole === role.value 
-                    ? 'bg-white/20 text-white' 
-                    : isDarkMode 
-                      ? 'bg-blue-900/50 text-blue-300' 
-                      : 'bg-blue-100 text-blue-600'
-                }`}>
-                  Custom
-                </span>
-              )}
-            </button>
-          ))}
+        <div className="py-0.5 max-h-36 overflow-y-auto custom-scroll">
+          {isLoading ? (
+            <div className="px-3 py-2 text-sm text-gray-500">Loading roles...</div>
+          ) : roleChoices.length > 0 ? (
+            roleChoices.map((role) => (
+              <button
+                key={role.value}
+                type="button"
+                className={`w-full text-left px-3 py-2 text-sm transition-colors duration-150
+                  ${selectedRole === role.value
+                    ? 'bg-blue-500 text-white'
+                    : isDarkMode
+                      ? 'text-gray-200 hover:bg-gray-600'
+                      : 'text-gray-900 hover:bg-gray-100'
+                  }`}
+                onClick={() => handleSelect(role.value)}
+              >
+                {role.label}
+              </button>
+            ))
+          ) : (
+            <div className="px-3 py-2 text-sm text-gray-500">No roles available</div>
+          )}
         </div>
       </div>
     </div>
   );
 };
 
-// ✅ Password validation function
+// Password validation function
 const validatePassword = (password) => {
   const errors = [];
 
@@ -157,33 +147,32 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
-  // ✅ Password visibility states
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // ✅ Password validation state
   const [passwordValidation, setPasswordValidation] = useState([]);
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [confirmPasswordTouched, setConfirmPasswordTouched] = useState(false);
 
-  // ✅ Custom role states
-  const [showCustomRoleInput, setShowCustomRoleInput] = useState(false);
-  const [customRole, setCustomRole] = useState('');
-  const [customRoles, setCustomRoles] = useState([]);
+  // ✅ Fetch roles from backend
+  const { data: rolesData = [], isLoading: rolesLoading, error: rolesError } = useGetRolesQuery();
 
   const [createUser, { isLoading }] = useCreateUserMutation();
-  const { data: permissionsData } = useGetUserPermissionsQuery(userId);
+  
 
-  const defaultRoleChoices = [
-    { value: 'admin', label: 'Administrator' },
-    { value: 'manager', label: 'Manager' },
-    { value: 'user', label: 'User' },
-  ];
+  // ✅ Transform roles data to match dropdown format
+  const roleChoices = React.useMemo(() => {
+    if (!Array.isArray(rolesData) || rolesData.length === 0) {
+      return [];
+    }
 
-  // ✅ Combine default and custom roles
-  const roleChoices = [...defaultRoleChoices, ...customRoles];
+    return rolesData.map(role => ({
+      value: role.uuid, // Use UUID as value
+      label: role.role_name || role.name || 'Unknown Role' // Adjust field name based on backend response
+    }));
+  }, [rolesData]);
+  console.log(roleChoices)
 
-  // ✅ Check if fields should be enabled based on sequential completion
   const isFieldEnabled = (fieldName) => {
     switch (fieldName) {
       case 'username':
@@ -211,12 +200,8 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
     }
   };
 
-  // ✅ Check if passwords match
   const passwordsMatch = formData.password && formData.confirm_password &&
     formData.password === formData.confirm_password;
-
-  const passwordsDontMatch = formData.confirm_password &&
-    formData.password !== formData.confirm_password;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -228,7 +213,6 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
       [name]: value,
     });
 
-    // ✅ Real-time password validation
     if (name === 'password') {
       const validationErrors = validatePassword(value);
       setPasswordValidation(validationErrors);
@@ -237,21 +221,18 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
         setPasswordTouched(true);
       }
 
-      // Clear confirm password when password changes
       if (formData.confirm_password) {
         setFormData(prev => ({ ...prev, confirm_password: '' }));
         setConfirmPasswordTouched(false);
       }
     }
 
-    // ✅ Real-time confirm password validation
     if (name === 'confirm_password') {
       if (!confirmPasswordTouched) {
         setConfirmPasswordTouched(true);
       }
     }
 
-    // Clear specific field error when user starts typing
     if (errors[name]) {
       setErrors({
         ...errors,
@@ -260,66 +241,6 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
     }
   };
 
-  // ✅ Handle custom role creation
-  const handleAddCustomRole = () => {
-    if (!customRole.trim()) {
-      toast.error('Please enter a role name');
-      return;
-    }
-
-    // Validate custom role name
-    if (customRole.length < 3) {
-      toast.error('Role name must be at least 3 characters');
-      return;
-    }
-
-    if (customRole.length > 20) {
-      toast.error('Role name must be less than 20 characters');
-      return;
-    }
-
-    // Check if role already exists (case-insensitive)
-    const existingRole = roleChoices.find(
-      role => role.value.toLowerCase() === customRole.toLowerCase().trim()
-    );
-
-    if (existingRole) {
-      toast.error('This role already exists');
-      return;
-    }
-
-    // Validate role name format (alphanumeric and underscore only)
-    if (!/^[a-zA-Z0-9_]+$/.test(customRole.trim())) {
-      toast.error('Role name can only contain letters, numbers, and underscores');
-      return;
-    }
-
-    // Create new custom role
-    const newCustomRole = {
-      value: customRole.toLowerCase().trim(),
-      label: customRole.trim().charAt(0).toUpperCase() + customRole.trim().slice(1),
-      isCustom: true
-    };
-
-    setCustomRoles(prev => [...prev, newCustomRole]);
-    setFormData({ ...formData, role: newCustomRole.value });
-    setCustomRole('');
-    setShowCustomRoleInput(false);
-    toast.success(`Custom role "${newCustomRole.label}" created successfully!`);
-  };
-
-  // ✅ Handle removing custom role
-  const handleRemoveCustomRole = (roleValue) => {
-    setCustomRoles(prev => prev.filter(role => role.value !== roleValue));
-
-    if (formData.role === roleValue) {
-      setFormData({ ...formData, role: '' });
-    }
-
-    toast.info('Custom role removed');
-  };
-
-  // ✅ Handle role selection change via dropdown
   const handleRoleChange = (value) => {
     setFormData({
       ...formData,
@@ -368,30 +289,23 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
     return Object.keys(newErrors).length === 0;
   };
 
-  // ✅ Enhanced backend error handling for your specific error structure
   const handleBackendError = (error) => {
-    console.error('Backend error structure:', error);
-
     let errorMessage = 'Unknown error occurred';
     let fieldErrors = {};
 
     if (error?.data) {
       const errorData = error.data;
 
-      // ✅ Handle your specific error structure: {status: 400, data: {code: "VALIDATION_ERROR", errors: {email: [messages]}}}
       if (errorData.code === "VALIDATION_ERROR" && errorData.errors) {
-        // Handle validation errors structure
         Object.keys(errorData.errors).forEach(field => {
           if (Array.isArray(errorData.errors[field])) {
-            fieldErrors[field] = errorData.errors[field][0]; // Take first error message
+            fieldErrors[field] = errorData.errors[field][0];
           }
         });
 
-        // Set field-specific errors
         if (Object.keys(fieldErrors).length > 0) {
           setErrors(prev => ({ ...prev, ...fieldErrors }));
 
-          // Show toast with specific field errors
           const errorMessages = Object.keys(fieldErrors).map(field =>
             `${field.charAt(0).toUpperCase() + field.slice(1)}: ${fieldErrors[field]}`
           );
@@ -403,7 +317,6 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
         }
       }
 
-      // ✅ Handle other error structures
       if (errorData.message) {
         errorMessage = errorData.message;
       } else if (errorData.error) {
@@ -417,7 +330,6 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
       } else if (typeof errorData === 'string') {
         errorMessage = errorData;
       } else {
-        // Handle direct field errors in different format
         Object.keys(errorData).forEach(field => {
           if (Array.isArray(errorData[field])) {
             fieldErrors[field] = errorData[field][0];
@@ -437,33 +349,29 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
       errorMessage = error.message;
     }
 
-    // Show general error message
     toast.error(errorMessage);
   };
 
-  // ✅ Updated handleSubmit with proper toast handling and auto-close
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
 
-    // Store user data for success message
     const userData = { ...formData };
+    console.log("This is the formdata on clikcing the submit",userData)
     setLoading(true);
 
     try {
-      const result = await createUser(formData).unwrap();
+      await createUser(formData).unwrap();
       
       setLoading(false);
-
-      // ✅ Success: Close modal immediately
       handleReset();
       onUserCreated();
       onHide();
 
-      //✅ Show success toast after modal closes
       setTimeout(() => {
+        const selectedRoleLabel = roleChoices.find(r => r.value === userData.role_name)?.label;
         toast.success(
-          `User "${userData.username}" created successfully with role "${userData.role}"!`,
+          `User "${userData.username}" created successfully with role "${selectedRoleLabel}"!`,
           {
             position: "top-right",
             autoClose: 4000,
@@ -478,13 +386,10 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
     } catch (error) {
       console.error('User creation error:', error);
       setLoading(false);
-      
-      // ✅ Error: Keep modal open and show error
       handleBackendError(error);
     }
   };
 
-  // ✅ Reset function
   const handleReset = () => {
     setFormData({
       username: '',
@@ -499,8 +404,6 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
     setConfirmPasswordTouched(false);
     setShowPassword(false);
     setShowConfirmPassword(false);
-    setShowCustomRoleInput(false);
-    setCustomRole('');
     setLoading(false);
   };
 
@@ -509,7 +412,6 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
     onHide();
   };
 
-  // ✅ Helper function to get input styling
   const getInputStyling = (fieldName) => {
     const isEnabled = isFieldEnabled(fieldName);
 
@@ -530,7 +432,6 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
       : 'border-gray-300 focus:border-blue-500 bg-white text-gray-900 focus:ring-blue-500';
   };
 
-  // ✅ Enhanced password input styling with instant validation
   const getPasswordInputStyling = () => {
     const isEnabled = isFieldEnabled('password');
 
@@ -546,7 +447,6 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
         : 'border-red-500 bg-gray-100 text-gray-700 placeholder-gray-500 focus:border-red-500 focus:ring-red-500';
     }
 
-    // ✅ Green border when password is valid
     if (passwordTouched && passwordValidation.length === 0 && formData.password) {
       return isDarkMode
         ? 'border-green-500 bg-gray-700 text-white focus:border-green-500 focus:ring-green-500'
@@ -558,7 +458,6 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
       : 'border-gray-300 focus:border-blue-500 bg-white text-gray-900 focus:ring-blue-500';
   };
 
-  // ✅ Enhanced confirm password input styling
   const getConfirmPasswordInputStyling = () => {
     const isEnabled = isFieldEnabled('confirm_password');
 
@@ -617,7 +516,6 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Close Button */}
         <button
           onClick={handleClose}
           className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
@@ -625,7 +523,6 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
           <XMarkIcon className="h-5 w-5" />
         </button>
 
-        {/* Title */}
         <h3
           className="text-xl font-semibold mb-5 flex items-center"
           style={{ color: isDarkMode ? '#F1F5F9' : '#1E293B' }}
@@ -724,14 +621,12 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
                 </button>
               </div>
 
-              {/* ✅ Instant password validation feedback */}
               {passwordTouched && passwordValidation.length > 0 && isFieldEnabled('password') && (
                 <p className="mt-0.5 text-xs text-red-600">
                   Missing: {passwordValidation.join(', ')}
                 </p>
               )}
 
-              {/* ✅ Success message when password is valid */}
               {passwordTouched && passwordValidation.length === 0 && formData.password && (
                 <p className="mt-0.5 text-xs text-green-600">
                   ✓ Password meets all requirements
@@ -782,7 +677,6 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
                 </button>
               </div>
 
-              {/* ✅ Instant password match validation */}
               {confirmPasswordTouched && formData.confirm_password && (
                 <div className="mt-0.5">
                   {passwordsMatch ? (
@@ -803,7 +697,7 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
             </div>
           </div>
 
-          {/* ✅ Enhanced Role Selection with Dropdown Style */}
+          {/* Role Selection - Fetches from Backend */}
           <div>
             <label
               htmlFor="role"
@@ -813,137 +707,24 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
               User Role
             </label>
 
-            <div className="space-y-3">
-              {/* ✅ Role Dropdown with Plus Icon */}
-              <div className="flex items-center space-x-2">
-                <CreateRoleDropdown
-                  roleChoices={roleChoices}
-                  selectedRole={formData.role}
-                  setSelectedRole={handleRoleChange}
-                  isDarkMode={isDarkMode}
-                  disabled={!isFieldEnabled('role')}
-                />
+            <CreateRoleDropdown
+              roleChoices={roleChoices}
+              selectedRole={formData.role}
+              setSelectedRole={handleRoleChange}
+              isDarkMode={isDarkMode}
+              disabled={!isFieldEnabled('role')}
+              isLoading={rolesLoading}
+            />
 
-                {/* ✅ Plus Icon Button for Custom Role */}
-                <button
-                  type="button"
-                  onClick={() => setShowCustomRoleInput(!showCustomRoleInput)}
-                  disabled={!isFieldEnabled('role')}
-                  className={`p-2 rounded-lg border-2 border-dashed transition-all duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed ${showCustomRoleInput
-                      ? isDarkMode
-                        ? 'border-blue-500 bg-blue-900/20 text-blue-400'
-                        : 'border-blue-500 bg-blue-50 text-blue-600'
-                      : isDarkMode
-                        ? 'border-gray-600 hover:border-gray-500 text-gray-400 hover:text-gray-300 hover:bg-gray-700'
-                        : 'border-gray-300 hover:border-gray-400 text-gray-500 hover:text-gray-600 hover:bg-gray-50'
-                    }`}
-                  title={showCustomRoleInput ? "Cancel custom role creation" : "Create custom role"}
-                >
-                  {showCustomRoleInput ? (
-                    <XMarkIcon className="w-5 h-5" />
-                  ) : (
-                    <PlusIcon className="w-5 h-5" />
-                  )}
-                </button>
-              </div>
-
-              {/* ✅ Custom Role Input (appears below when plus is clicked) */}
-              {showCustomRoleInput && (
-                <div
-                  className="p-3 rounded-lg border-2 border-dashed transition-all animate-fadeIn"
-                  style={{
-                    borderColor: isDarkMode ? '#4B5563' : '#D1D5DB',
-                    backgroundColor: isDarkMode ? '#374151' : '#F9FAFB'
-                  }}
-                >
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="text"
-                      value={customRole}
-                      onChange={(e) => setCustomRole(e.target.value)}
-                      placeholder="Enter custom role name (e.g., 'supervisor')"
-                      className={`flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${isDarkMode
-                          ? 'border-gray-600 bg-gray-700 text-white placeholder-gray-400'
-                          : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
-                        }`}
-                      maxLength="20"
-                      autoFocus
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleAddCustomRole();
-                        }
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddCustomRole}
-                      className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center"
-                      title="Add custom role"
-                    >
-                      <CheckIcon className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowCustomRoleInput(false);
-                        setCustomRole('');
-                      }}
-                      className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center"
-                      title="Cancel"
-                    >
-                      <CloseIcon className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                    Role name should be 3-20 characters, letters, numbers, and underscores only.
-                  </p>
-                </div>
-              )}
-
-              {/* ✅ Display Custom Roles with Remove Option */}
-              {customRoles.length > 0 && (
-                <div className="space-y-2">
-                  <p className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Custom Roles:
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {customRoles.map((role) => (
-                      <div
-                        key={role.value}
-                        className={`flex items-center space-x-2 px-3 py-1 rounded-full text-sm transition-all ${formData.role === role.value
-                            ? 'bg-blue-100 text-blue-800 border-2 border-blue-300'
-                            : isDarkMode
-                              ? 'bg-gray-600 text-gray-300 border border-gray-500 hover:bg-gray-500'
-                              : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
-                          }`}
-                      >
-                        <span>{role.label}</span>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveCustomRole(role.value)}
-                          className={`ml-1 hover:bg-red-500 hover:text-white rounded-full p-0.5 transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                            }`}
-                          title="Remove custom role"
-                        >
-                          <XMarkIcon className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+            {rolesError && (
+              <p className="mt-0.5 text-xs text-red-600">
+                Error loading roles. Please try again.
+              </p>
+            )}
 
             {errors.role && (
               <p className="mt-0.5 text-xs text-red-600">{errors.role}</p>
             )}
-            <p
-              className="mt-0.5 text-xs"
-              style={{ color: isDarkMode ? '#9CA3AF' : '#6B7280' }}
-            >
-              Select from available roles or click <PlusIcon className="w-3 h-3 inline mx-1" /> to create a custom role.
-            </p>
           </div>
 
           <div className="flex justify-end space-x-3 pt-3 border-t" style={{ borderColor: isDarkMode ? '#374151' : '#E5E7EB' }}>
@@ -963,7 +744,7 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
 
             <button
               type="submit"
-              disabled={isLoading || loading}
+              disabled={isLoading || loading || rolesLoading}
               className={`inline-flex items-center px-5 py-1.5 font-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 ${isDarkMode
                 ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 focus:ring-offset-gray-800'
                 : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 focus:ring-offset-2'

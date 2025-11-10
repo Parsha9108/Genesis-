@@ -7,6 +7,7 @@ import uuid
 from simple_history.models import HistoricalRecords
 from oauth2_provider.models import Application, get_access_token_model
 from simple_history.utils import update_change_reason
+from .roles import *
 
 
 
@@ -333,6 +334,7 @@ class Storage(models.Model):
         self.free_space = f"{free_space:.2f} {total_size_unit}"
         self.save()
         return f"disk updated successfully:free space {self.free_space}"
+        
 class Partition(models.Model):
     uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     storage = models.ForeignKey(Storage, on_delete=models.CASCADE, related_name='partition')
@@ -686,11 +688,10 @@ class MonitoringSession(models.Model):
 
 class WebUser(models.Model):
     # choices constraint - allow any role value
-    role = models.CharField(max_length=50, help_text="User role (e.g., admin, manager, user, supervisor, etc.)")
+    role = models.ForeignKey(Role, on_delete=models.PROTECT, null=True)
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     username = models.CharField(max_length=100, unique=True)
     password = models.CharField(max_length=128)
-    confirm_password = models.CharField(max_length=128)
     email = models.EmailField(unique=True)
     is_active = models.BooleanField(default=True)
     date_joined = models.DateTimeField(auto_now_add=True)

@@ -1,5 +1,7 @@
 from django.urls import path
 from .views import *
+from .services.webapp_services.user_management.user_details import *
+from .services.webapp_services.user_management.user_roles import RolesManageView
 
 urlpatterns =[
     path('onboard/',agent_onboard_view,name='agent_view'),
@@ -21,7 +23,7 @@ urlpatterns =[
     path('users/',get_all_user_details,name='users'),
     path('users/update/<uuid:id>/',update_user_details, name='webuser-detail'),
     path('users/delete/<uuid:id>/', delete_user_details, name='delete-user'),
-    path('dashboard/',dashboard_view, name='dashboard'),
+    path('get/logged-in-user-details/', get_logged_in_user_details, name='get-logged-in-user-details'),
     path('logout/', logout, name='logout'), 
     
     path('devicedata/',all_devicedata_view, name='all_devicedata'),
@@ -76,4 +78,11 @@ urlpatterns =[
     path('alerts/mark-read/', mark_alert_read_view, name='mark_alert_read'),
     path('alerts/mark-all-read/', mark_all_alerts_read_view, name='mark_all_alerts_read'),
     path('alerts/unread-count/', unread_alerts_count_view, name='unread_alerts_count'),
+
+    path('modules/permissions/all', get_user_permission_set, name='get_user_permission_set'),
+    path('modules/permissions/', get_module_permission, name='get_module_permission'),
+    
+    # Test URL
+    path('request/user/', test_request_user),
+    path('roles/', RolesManageView.as_view(), name='roles-manage'),
 ]

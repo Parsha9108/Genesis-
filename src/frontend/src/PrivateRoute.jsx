@@ -16,7 +16,7 @@ const PrivateRoute = ({ children }) => {
 
   useEffect(() => {
     setLoading(true);
-    axios.get('/api/webuser/dashboard/', { withCredentials: true })
+    axios.get('/api/webuser/get/logged-in-user-details/', { withCredentials: true })
       .then(res => {
         if (res.status === 200) {
            console.log("Checking authentication status...",res)

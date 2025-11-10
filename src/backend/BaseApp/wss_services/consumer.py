@@ -708,10 +708,11 @@ class FrontendMonitoringConsumer(AsyncWebsocketConsumer):
         }))
 
     async def alert_created(self, event):
-        print(f"🔥CONSUMER RECEIVED: alert_update")
+        print(f"CONSUMER RECEIVED: alert_update")
         print(f"Event data: {event}")
         await self.send(text_data=json.dumps({
             "type": "alert_created",
             "data": event['data']
         }))    
+
    

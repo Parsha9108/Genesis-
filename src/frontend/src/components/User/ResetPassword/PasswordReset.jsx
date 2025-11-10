@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Formik, Form, Field } from "formik";
 import * as Yup from "yup";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useSearchParams,useLocation } from "react-router-dom";
 import axios from "axios";
 import { Eye, EyeOff } from "lucide-react";
 import { toast } from "react-toastify";
@@ -11,7 +11,9 @@ const PasswordReset = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const emailFromState = location.state?.email || "";
-
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get("token");
+  console.log("Password reset token:", token);
   // 👁️ Password visibility toggles
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -31,7 +33,6 @@ const PasswordReset = () => {
       .oneOf([Yup.ref("password")], "Passwords must match")
       .required("Please re-enter your password"),
   });
-
   const onSubmit = async ({ email, password, confirm_password }, { setSubmitting }) => {
     try {
       const res = await axios.patch(`/api/webuser/password-reset/`, {
@@ -39,12 +40,13 @@ const PasswordReset = () => {
         password,
         confirm_password,
       });
-
+      console.log("first time Password reset response:", res);
       if (res.status === 200 || res.status === 201) {
         toast.success(res.data.message || "Password updated successfully!");
         navigate("/signin");
       }
     } catch (error) {
+      console.log(error);
       toast.error(error.response?.data?.error || "Failed to reset password.");
     } finally {
       setSubmitting(false);

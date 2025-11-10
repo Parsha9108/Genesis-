@@ -52,7 +52,7 @@ def get_admin_email_template(user, verify_url):
                         </tr>
                         <tr style="border-bottom: 1px solid #e2e8f0;">
                             <td style="padding: 8px 0; font-weight: 600; color: #4a5568;">Role:</td>
-                            <td style="padding: 8px 0; color: #2d3748;"><strong>Administrator</strong></td>
+                            <td style="padding: 8px 0; color: #2d3748;"><strong>{user.role}</strong></td>
                         </tr>
                         <tr>
                             <td style="padding: 8px 0; font-weight: 600; color: #4a5568;">Created:</td>
@@ -195,7 +195,7 @@ Your administrator account has been created successfully.
 Account Details:
 - Username: {user.username}
 - Email: {user.email}
-- Role: Administrator
+- Role: {user.role}
 - Created: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}
 
 SECURITY NOTICE:
@@ -223,7 +223,7 @@ Welcome to our platform! Your account has been created successfully.
 Your Login Credentials:
 - Username: {user.username}
 - Email: {user.email}
-- Role: {user.role.title()}
+- Role: {user.role}
 - Temporary Password: {raw_password}
 
 SECURITY RECOMMENDATIONS:

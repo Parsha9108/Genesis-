@@ -32,7 +32,7 @@ def sendemail_to_reset_password(request):
     user = WebUser.objects.get(email=email)
     token = generate_password_reset_token(user)
     token_encoded = quote(token)
-    reset_link = f"https://192.168.100.101/app/reset-password/{user.id}?token={token_encoded}"
+    reset_link = f"https://192.168.100.91/app/reset-password/{user.id}?token={token_encoded}"
 
 
 

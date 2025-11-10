@@ -156,7 +156,7 @@ const DevicesList = ({ isDarkMode = true }) => {
         device_type: deviceData.dev_phy_vm || 'Virtual',
         ip: ipData.address || '0.0.0.0',
         uptime: device?.status === 'Active'
-          ? getUptimeDuration(device?.uptime_started_at)
+          ? getUptimeDuration(device?.last_uptime_duration)
           : formatDateTime(device?.last_seen),
         isActive: device?.status || 'Inactive',
       };

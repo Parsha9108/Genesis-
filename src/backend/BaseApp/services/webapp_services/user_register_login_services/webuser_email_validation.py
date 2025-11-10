@@ -11,4 +11,3 @@ def check_email(request):
     return Response({'available': True})
 
    
-       
