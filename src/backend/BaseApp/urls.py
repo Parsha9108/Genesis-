@@ -1,6 +1,7 @@
 from django.urls import path
 from .views import *
 from .services.webapp_services.user_management.user_details import *
+from .services.webapp_services.user_management.user_roles import RolesManageView
 
 urlpatterns =[
     path('onboard/',agent_onboard_view,name='agent_view'),
@@ -80,7 +81,8 @@ urlpatterns =[
 
     path('modules/permissions/all', get_user_permission_set, name='get_user_permission_set'),
     path('modules/permissions/', get_module_permission, name='get_module_permission'),
-
+    
     # Test URL
     path('request/user/', test_request_user),
+    path('roles/', RolesManageView.as_view(), name='roles-manage'),
 ]

@@ -20,22 +20,25 @@ class JWTCookieAuthentication(BaseAuthentication):
             raise AuthenticationFailed('Invalid token')
 
 
-def check_permission(func):
-    def wrapper(request, *args, **kwargs):
-        if request.user:
-            if request.user.role.check_permission(module=request.data.get('module'), action=request.data.get('action')):
-                return func(request, *args, **kwargs)
+def check_permission(module, allowed_action):
+    def decorator(func):
+        # @wraps(func)
+        def wrapper(request, *args, **kwargs):
+            if request.user:
+                if request.user.role.check_permission(module=module, action=allowed_action):
+                    return func(request, *args, **kwargs)
+                else:
+                    return Response({
+                    'success': False,
+                    'error': 'User does not have permission to access this resource.',
+                    'code': 'NO_ACCESS'
+                }, status=status.HTTP_400_BAD_REQUEST)
             else:
                 return Response({
-                'success': False,
-                'error': 'User does not have permission to access this page.',
-                'code': 'NO_ACCESS'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        else:
-            return Response({
-                'success': False,
-                'error': 'User Not Logged In.',
-                'code': 'NO_LOGIN_FOUND'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
-    return wrapper
+                    'success': False,
+                    'error': 'User Not Logged In.',
+                    'code': 'NO_LOGIN_FOUND'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+        return wrapper
+    return decorator

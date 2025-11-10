@@ -257,11 +257,13 @@ class DiskMonitoringSerializer(serializers.ModelSerializer):
     
 class WebUserSerializer(serializers.ModelSerializer):
     confirm_password = serializers.CharField(write_only=True)
+    role_name = serializers.CharField(source='role.role_name', read_only=True)
     class Meta:
         model = WebUser
         fields ='__all__' 
         extra_kwargs = {
-            'password': {'write_only': True}
+            'password': {'write_only': True},
+            'role': {'write_only': True},
         }
  
     def validate(self, attrs):
@@ -377,22 +379,15 @@ class UserUpdateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("This email is already in use.")
         return value
 
-    def validate_role(self, value):
-        """Validate role choices"""
-        if value:
-            valid_roles = ['admin', 'manager', 'user']  # Define your valid roles
-            if value.lower() not in valid_roles:
-                raise serializers.ValidationError("Invalid role. Must be one of: admin, manager, user")
-        return value
-
     def update(self, instance, validated_data):
         """Update only the fields that are provided"""
         for attr, value in validated_data.items():
-            if value:  # Only update if value is provided and not empty
+            if value is not None:  # Update if value is provided (including empty role)
                 setattr(instance, attr, value)
         
         instance.save()
         return instance
+
 class WebLoginSerializer(serializers.Serializer):
     email = serializers.CharField()
     password = serializers.CharField(write_only=True)   
@@ -489,6 +484,212 @@ class AvailableWebAgentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Agent
         fields = ["uuid", "os", "os_version", "hostname", "device","status","uptime_started_at"]  
-
+class RoleSerializer(serializers.ModelSerializer):
+    """
+    Serializer for Role model
+    Basic role details without permissions
+    """
     
+    class Meta:
+        model = Role
+        fields = ['role_name']
+
+class PermissionSetSerializer(serializers.ModelSerializer):
+    """
+    Serializer for PermissionSet model
+    Handles individual permission records
+    """
+    
+    class Meta:
+        model = PermissionSet
+        fields =[
+            'module',
+            'create',
+            'read',
+            'update',
+            'delete'
+        ]
+
+class RoleListSerializer(serializers.ModelSerializer):
+    """
+    Role list serializer with permission details
+    Returns role with complete permission set
+    """
+    permissions = PermissionSetSerializer(
+        source='permissionset_set',
+        many=True,
+        read_only=True
+    )
+
+    class Meta:
+        model = Role
+        fields = [
+            'uuid',
+            'role_name',
+            'permissions'
+        ]
+
+
+class PermissionSetCreateSerializer(serializers.Serializer):
+    """
+    Serializer for creating permissions in bulk
+    Used when creating/updating roles with permissions
+    """
+    # Define fields explicitly (not model/fields like ModelSerializer)
+    module = serializers.ChoiceField(
+        choices=[m[0] for m in PermissionSet.modules]
+    )
+    create = serializers.BooleanField(required=False, default=False)
+    read = serializers.BooleanField(required=False, default=False)
+    update = serializers.BooleanField(required=False, default=False)
+    delete = serializers.BooleanField(required=False, default=False)
+    
+    def validate_module(self, value):
+        """Validate module is valid"""
+        valid_modules = [m[0] for m in PermissionSet.modules]
+        if value not in valid_modules:
+            raise serializers.ValidationError(
+                f"Invalid module. Choose from: {', '.join(valid_modules)}"
+            )
+        return value
+    
+    def validate(self, data):
+        """Validate at least one permission is set"""
+        has_any_permission = any([
+            data.get('create', False),
+            data.get('read', False),
+            data.get('update', False),
+            data.get('delete', False)
+        ])
+        
+        
+        return data
+
+class RoleCreateUpdateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for creating/updating roles with permissions
+    Handles nested permission creation/update
+    """
+    permissions = PermissionSetCreateSerializer(
+        many=True,
+        write_only=True,
+        required=False
+    )
+    
+    class Meta:
+        model = Role
+        fields = [
+            'uuid',
+            'role_name',
+            'permissions'
+        ]
+        read_only_fields = ['uuid']
+        extra_kwargs = {
+            'role_name': {'required': False}  # Make optional for partial updates
+        }
+    
+    def validate_role_name(self, value):
+        """Validate role name"""
+        if not value or len(value.strip()) == 0:
+            raise serializers.ValidationError(
+                "Role name cannot be empty"
+            )
+        
+        # Check for duplicate
+        instance = self.instance
+        query = Role.objects.filter(role_name__iexact=value)
+        
+        if instance:
+            # Exclude current role when checking for duplicates
+            query = query.exclude(uuid=instance.uuid)
+        
+        if query.exists():
+            raise serializers.ValidationError(
+                f"Role with name '{value}' already exists"
+            )
+        
+        return value
+    
+    def validate_permissions(self, value):
+        """Validate permissions list"""
+        if not value:
+            return value
+        
+        # Ensure it's a list
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Permissions must be a list")
+        
+        # Check for duplicate modules
+        modules = [perm.get('module') for perm in value]
+        if len(modules) != len(set(modules)):
+            raise serializers.ValidationError(
+                "Duplicate modules in permissions"
+            )
+        
+        return value
+    
+    def create(self, validated_data):
+        """Create role with nested permissions"""
+        try:
+            # Extract permissions from validated_data
+            permissions_data = validated_data.pop('permissions', [])
             
+            # Create role
+            role = Role.objects.create(**validated_data)
+            
+            # Create permissions
+            for perm_data in permissions_data:
+                PermissionSet.objects.create(
+                    role=role,
+                    module=perm_data['module'],
+                    create=perm_data.get('create', False),
+                    read=perm_data.get('read', False),
+                    update=perm_data.get('update', False),
+                    delete=perm_data.get('delete', False)
+                )
+            
+            return role
+        except Exception as e:
+            # Rollback if creation fails
+            if 'role' in locals():
+                role.delete()
+            raise serializers.ValidationError(f"Failed to create role: {str(e)}")
+    
+    def update(self, instance, validated_data):
+        """
+        Update role and/or its permissions
+        - If role_name provided: update role name
+        - If permissions provided: update permissions
+        """
+        try:
+            # Extract permissions from validated_data
+            permissions_data = validated_data.pop('permissions', None)
+            
+            # Update role name only if provided
+            if 'role_name' in validated_data:
+                instance.role_name = validated_data['role_name']
+                instance.save()
+            
+            # Update permissions only if provided
+            if permissions_data is not None:
+                # Ensure it's a list
+                if not isinstance(permissions_data, list):
+                    raise serializers.ValidationError("Permissions must be a list")
+                
+                # Delete existing permissions
+                instance.permissionset_set.all().delete()
+                
+                # Create new permissions
+                for perm_data in permissions_data:
+                    PermissionSet.objects.create(
+                        role=instance,
+                        module=perm_data.get('module'),
+                        create=perm_data.get('create', False),
+                        read=perm_data.get('read', False),
+                        update=perm_data.get('update', False),
+                        delete=perm_data.get('delete', False)
+                    )
+            
+            return instance
+        except Exception as e:
+            raise serializers.ValidationError(f"Failed to update role: {str(e)}")

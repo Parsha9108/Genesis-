@@ -8,10 +8,10 @@ import { useNavigate, Outlet } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import axios from "axios";
 import { useGetDevicesdataQuery, apiSlice } from "../../redux/apiSlice";
+import { resetPermissions } from "../../redux/userModulePermission"; // ADD THIS
 import { useRefreshSettings } from "../../Contexts/RefreshContext";
 import { useAutoRefresh } from "../../Hooks/useAutoRefresh";
 import { useSidebar } from "../../Contexts/SidebarContext";
-
 
 const Layout = ({
   isDarkMode,
@@ -84,7 +84,6 @@ const Layout = ({
 
     const currentCount = allAlerts.length;
     
-    // If alert count increased AND we have audio enabled
     if (currentCount > previousAlertCountRef.current && previousAlertCountRef.current > 0) {
       console.log(`🔔 New alert detected! Count: ${previousAlertCountRef.current} → ${currentCount}`);
       
@@ -122,26 +121,67 @@ const Layout = ({
 
   const handleLogout = useCallback(async () => {
     try {
+      console.log('🚪 Logout initiated...');
+      
+      // 1. Call server logout API
       try {
         const res = await axios.post(
           "/api/webuser/logout/",
           {},
           { withCredentials: true }
         );
-        if (res.status === 200)
+        if (res.status === 200) {
+          console.log('✅ Server logout successful');
           toast.success(res.data.message || "Logout successful!");
-      } catch {
-        console.warn("Server logout failed, continuing cleanup");
+        }
+      } catch (error) {
+        console.warn("⚠️ Server logout failed, continuing cleanup", error);
       }
 
+      // 2. Reset API cache
+      console.log('🔄 Resetting API state...');
       dispatch(apiSlice.util.resetApiState());
+      
+      // 3. Reset permissions
+      console.log('Resetting permissions...');
+      dispatch(resetPermissions());
+      
+      // 4. Reset auth state
+      console.log('👤 Clearing auth state...');
       dispatch({ type: "auth/logout" });
+      
+      // 5. Clear user data
       setUser(null);
       setAuthenticated(false);
+      
+      // 6. Clear storage
+      console.log('🗑️ Clearing storage...');
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // 7. Clear cookies
+      document.cookie.split(";").forEach((c) => {
+        document.cookie = c
+          .replace(/^ +/, "")
+          .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+      });
+      
+      console.log('✅ Logout complete, redirecting...');
+      
+      // 8. Navigate to sign in
       navigate("/signin");
+      
     } catch (error) {
-      console.error("Logout failed:", error);
+      console.error("❌ Logout failed:", error);
       toast.error("Logout failed");
+      
+      // Force cleanup even on error
+      dispatch(resetPermissions());
+      setUser(null);
+      setAuthenticated(false);
+      localStorage.clear();
+      sessionStorage.clear();
+      
       setTimeout(() => (window.location.href = "/signin"), 1000);
     }
   }, [dispatch, setUser, setAuthenticated, navigate]);
@@ -217,6 +257,5 @@ const Layout = ({
     </div>
   );
 };
-
 
 export default Layout;

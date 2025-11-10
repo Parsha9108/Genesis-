@@ -538,6 +538,6 @@ def unread_alerts_count_view(request):
 @api_view(['GET'])
 @authentication_classes([JWTCookieAuthentication])
 @permission_classes([IsAuthenticated])
-@check_permission
+@check_permission(module="rbac", allowed_action="read")
 def test_request_user(request):
     return JsonResponse({"request.user": str(request.user)})

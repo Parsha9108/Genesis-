@@ -6,7 +6,8 @@ from rest_framework.decorators import api_view, permission_classes,throttle_clas
 from BaseApp.utils import JWTCookieAuthentication
 from rest_framework.permissions import IsAuthenticated
 from BaseApp.models.roles import *
-
+import logging
+logger = logging.getLogger('agent_monitoring')
 @api_view(['GET'])
 @authentication_classes([JWTCookieAuthentication])
 @permission_classes([IsAuthenticated])
@@ -46,7 +47,7 @@ def get_user_permission_set(request):
     data = {}
 
     module_permissions = request.user.role.permissionset_set.get_queryset()
-    
+    logger.info(f"Module Permissions: {module_permissions}")
     for module in module_permissions:
         data[module.module] = {}
         for perm in ["create", "read", "update", "delete"]:

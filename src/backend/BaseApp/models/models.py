@@ -334,6 +334,7 @@ class Storage(models.Model):
         self.free_space = f"{free_space:.2f} {total_size_unit}"
         self.save()
         return f"disk updated successfully:free space {self.free_space}"
+        
 class Partition(models.Model):
     uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     storage = models.ForeignKey(Storage, on_delete=models.CASCADE, related_name='partition')

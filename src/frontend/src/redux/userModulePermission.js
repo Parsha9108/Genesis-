@@ -1,31 +1,31 @@
 import { createSlice } from '@reduxjs/toolkit'
 
-/*
-
-{                                                                                                                                                              
-    rbac: { create: false, read: false, update: false, delete: false },                                                                                          
-    users_management: { create: false, read: false, update: false, delete: false },                                                                                                                                                                                                                       
-    monitoring: { create: false, read: false, update: false, delete: false }                                                                                   
-}   
-
-*/
+// {                                                                                                                                                              
+//     rbac: { create: false, read: false, update: false, delete: false },                                                                                          
+//     users_management: { create: false, read: false, update: false, delete: false },                                                                                                                                                                                                                       
+//     monitoring: { create: false, read: false, update: false, delete: false }                                                                                   
+// } 
 
 const module_names = [
-    'rbac',
-    'users_management',
-    'monitoring',
+    ['rbac', 'Roles'],
+    ['users_management', 'Users'],
+    ['monitoring', 'Monitoring'],
+    ['custom_groups', 'Custom Groups'],
 ];
+
+const MODULE_NAME_MAP = Object.fromEntries(module_names);
 
 var initialState_modules = {}
 
 for(let module of module_names){
-    initialState_modules[module] = {};
-    for(let perm of ['create', 'read', 'update', 'delete']){
-        initialState_modules[module][perm] = false;
-    }
+    initialState_modules[module[0]] = {
+        name: module[1],
+        create: false,
+        read: false,
+        update: false,
+        delete: false
+    };
 }
-
-console.log(initialState_modules);
 
 export const userModPermSlice = createSlice({
     name: 'userModPerm',
@@ -33,17 +33,35 @@ export const userModPermSlice = createSlice({
 
     reducers: {
         setPermissions: (state, action) => {
-            // /api/webuser/modules/permissions/all
-            // Only when user login
-            return action.payload;
+            // ADD NAMES if missing from API response
+            const permissionsWithNames = {};
+            
+            Object.keys(action.payload).forEach((moduleKey) => {
+                const moduleData = action.payload[moduleKey];
+                
+                permissionsWithNames[moduleKey] = {
+                    name: moduleData?.name || MODULE_NAME_MAP[moduleKey] || moduleKey,
+                    create: moduleData?.create ?? false,
+                    read: moduleData?.read ?? false,
+                    update: moduleData?.update ?? false,
+                    delete: moduleData?.delete ?? false,
+                };
+            });
+            
+            return permissionsWithNames;
         },
-        updatePermission: (state, action) => {
+        
+        updatePermissions: (state, action) => {
             const {module, newPermission} = action.payload;
 
             if (state.hasOwnProperty(module)){
-                state[module] = newPermission;
+                state[module] = {
+                    name: state[module].name || MODULE_NAME_MAP[module] || module,
+                    ...newPermission,
+                };
             }
         },
+        
         resetPermissions: (state) => {
             return initialState_modules;
         },
@@ -52,9 +70,8 @@ export const userModPermSlice = createSlice({
 
 export const { 
   setPermissions, 
-  updatePermission, 
-  resetPermission 
+  updatePermissions, 
+  resetPermissions 
 } = userModPermSlice.actions;
 
 export default userModPermSlice.reducer;
-

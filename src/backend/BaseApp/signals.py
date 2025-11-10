@@ -4,8 +4,9 @@ from django.dispatch import receiver
 from .models import (
     MonitoringCheckpoint, CpuMonitoring, MemoryMonitoring,
     DiskMonitoring, PartitionMonitoring, NetworkPortMonitoring, Alert,Event,Agent,Device,WebUser,
-    ApplicationDiskIO, ApplicationMemoryIO, ApplicationCPUIO,MonitoringCheckpoint,Port,Storage,Partition
-)
+    ApplicationDiskIO, ApplicationMemoryIO, ApplicationCPUIO,MonitoringCheckpoint,Port,Storage,Partition,WebUser)
+from .models.roles import PermissionSet
+import logging
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from .serializer import WebAgentSerializer
@@ -15,7 +16,7 @@ from django.utils import timezone
 import json
 from django.core.serializers.json import DjangoJSONEncoder
 
- 
+logger=logging.getLogger('agent_monitoring')
 def convert_uuids(obj):
     from uuid import UUID
     from datetime import datetime
@@ -259,3 +260,5 @@ def broadcast_alert_created(sender, instance, **kwargs):
         )
     except Exception as e:
         print(f"[ALERT SIGNAL ERROR] Failed to broadcast alert change: {e}")        
+
+

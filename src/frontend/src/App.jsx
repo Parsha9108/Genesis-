@@ -54,6 +54,7 @@ const PasswordReset = lazy(() => import('./components/User/ResetPassword/Passwor
 const Layout = lazy(() => import('./components/layout/Layout'));
 const AdminPanel = lazy(() => import('./components/administratorpanel/AdminPanel'));
 const Userlist = lazy(() => import('./components/administratorpanel/UserListTab'));
+const RoleManagement = lazy(() => import('./components/administratorpanel/RoleManagement'));
 
 const PermissionManagement = lazy(() => import('./components/permissions/PermissionManagement'));
 const UserPermissionsPage = lazy(() => import('./components/permissions/UserPermissionsPage'));
@@ -88,6 +89,7 @@ const AppContent = () => {
 
     for (const agentId in monitoringData.data) {
       const data = monitoringData.data[agentId];
+      console.log("Monitoring data",data);
       newActiveAgents[agentId] = Date.now();
       if (data.cpu) newCpuMap[agentId] = data.cpu;
       if (data.memory) newMemoryMap[agentId] = data.memory;
@@ -156,6 +158,7 @@ const AppContent = () => {
             <Route path="devices/:id/application-cpu-io/:appId" element={<CpuIO isDarkMode={isDarkMode} applicationData={applicationCpuIoMap} />} />
             {/*Settings url*/}
             <Route path="/settings" element={<SettingsPage isDarkMode={isDarkMode} />} />
+            <Route path="/role-management" element={<RoleManagement isDarkMode={isDarkMode} />} />
 
             <Route path="devices/:id/disk_details" element={<DiskDetails isDarkMode={isDarkMode} />} />
             <Route path="devices/:id/disk_io" element={<DiskIo isDarkMode={isDarkMode} diskMap={diskMap} />} />
