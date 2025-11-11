@@ -23,7 +23,8 @@ export const WebSocketProvider = ({ children }) => {
   const MAX_RECONNECT_ATTEMPTS = 5;
   const RECONNECT_INTERVAL = 3000;
   const PING_INTERVAL = 30000;
-  const WEBSOCKET_URL = 'wss://192.168.100.101/webapp/api/agent/';
+  const HOST = window.location.host;
+  const WEBSOCKET_URL = `wss://${HOST}/webapp/api/agent/`;
 
   // Clear all timers
   const clearTimers = useCallback(() => {
