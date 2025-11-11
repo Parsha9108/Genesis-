@@ -2,7 +2,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "https://192.168.100.101/api/webuser/",
+  baseURL: "/api/webuser/",
   withCredentials: true,
   timeout: 30000,
 });
