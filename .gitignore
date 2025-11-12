@@ -211,3 +211,6 @@ __marimo__/
 
 # Node Modules
 node_modules/
+
+# Genesis
+src/backend/CentralServer/logs/
