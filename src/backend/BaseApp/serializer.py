@@ -270,15 +270,14 @@ class WebUserSerializer(serializers.ModelSerializer):
         if attrs['password'] != attrs['confirm_password']:
             raise serializers.ValidationError("Passwords do not match.")
         return attrs
- 
+  
     def create(self, validated_data):
         validated_data.pop('confirm_password')
-        role = validated_data.get('role', 'viewer') 
+        role = validated_data.get('role') 
         
         # Create user
         user = WebUser(**validated_data)
-        user.password = make_password(validated_data['password'])
-        
+        user.password = make_password(validated_data['password']) 
         
         user.save()
         return user  
@@ -356,13 +355,8 @@ class UserGroupsSerializer(serializers.Serializer):
 class UserUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = WebUser
-        fields = ['username', 'email', 'role']
-        extra_kwargs = {
-            'username': {'required': False},
-            'email': {'required': False},
-            'role': {'required': False}
-        }
-
+        fields = ['username', 'email','password','role','is_active','is_email_enabled']
+    
     def validate_username(self, value):
         """Validate username uniqueness"""
         if value:
@@ -693,3 +687,4 @@ class RoleCreateUpdateSerializer(serializers.ModelSerializer):
             return instance
         except Exception as e:
             raise serializers.ValidationError(f"Failed to update role: {str(e)}")
+

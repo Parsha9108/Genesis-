@@ -18,15 +18,6 @@ import datetime
 from urllib.parse import quote
 from django.contrib.auth.signals import user_logged_in
 
-
-def verify_recaptcha(token):
-    secret_key = '6LdW2VcrAAAAAOE0_GEaFQhaQwBJOcuoPwNsAlnb'
-    response = requests.post(
-        'https://www.google.com/recaptcha/api/siteverify',
-        data={'secret': secret_key, 'response': token}
-    )
-    return response.json()
-
 def generate_jwt(user):
     payload = {
         "id": str(user.id),
@@ -53,13 +44,20 @@ def login_web_user(request):
     try:
         user = WebUser.objects.get(email=email)
     except WebUser.DoesNotExist:
-        return Response({"error": "User not registered"}, status=status.HTTP_404_NOT_FOUND)
+        return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
 
     if not check_password(password, user.password):
         return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
 
-    if not user.is_active:
+    elif not user.is_email_verified:
         return Response({"error": "Email not verified. Please check your inbox."}, status=status.HTTP_404_NOT_FOUND)
+     # Check 1: Account Active
+    elif not user.is_active:
+        return Response({
+            "success": False,
+            "error": "Account Inactive",
+            "message": "Your account has been deactivated. Please contact your administrator to activate",
+        }, status=status.HTTP_403_FORBIDDEN)
     
     user.is_currently_logged_in = True
     user.last_login = datetime.datetime.utcnow()
@@ -69,7 +67,6 @@ def login_web_user(request):
 
     token = generate_jwt(user)
     response_data = {}
-    
     if user.is_first_login:
         # Indicate first time login to frontend for custom redirect
         response_data = {

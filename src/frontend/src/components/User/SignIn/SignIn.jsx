@@ -70,17 +70,18 @@ const SignIn = () => {
     }
     catch (error) {
       const errorMessage = error.response?.data?.error;
+      console.log(errorMessage)
       if (error.response?.status === 404) {
-        if (errorMessage === "User not registered") {
-          toast.warning("This email is not registered. Please signup.");
-        } else if (errorMessage?.includes("Email not verified")) {
-          toast.warning("Email not verified. Please check your inbox.");
-        } else {
-          toast.warning(errorMessage || "Account not found.");
-        }
+        toast.warning(errorMessage);
       } else if (error.response?.status === 401) {
-        toast.error("Invalid password. Please try again.");
-      } else {
+        toast.error(errorMessage);
+      } else  if (error.response?.status === 403) {
+        const errorData = error.response.data;  
+        // Show specific error message from backend
+        toast.error(errorData.message);
+        // Optional: Show error details
+      }
+      else {
         toast.error("Server error. Please try again later.");
       }
       resetForm();

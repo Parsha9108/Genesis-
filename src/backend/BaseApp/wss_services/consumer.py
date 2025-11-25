@@ -666,7 +666,7 @@ def convert_uuids(obj):
     return obj
 
 # ═══════════════════════════════════════════════════════════════
-# 🔥 FRONTEND WEBSOCKET CONSUMER (EXACT SAME AS OLD WORKING CODE)
+# FRONTEND WEBSOCKET CONSUMER (EXACT SAME AS OLD WORKING CODE)
 # ═══════════════════════════════════════════════════════════════
 
 class FrontendMonitoringConsumer(AsyncWebsocketConsumer):

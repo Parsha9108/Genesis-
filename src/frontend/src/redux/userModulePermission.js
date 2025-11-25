@@ -1,30 +1,51 @@
-import { createSlice } from '@reduxjs/toolkit'
+import { createSlice } from '@reduxjs/toolkit';
 
 // {                                                                                                                                                              
 //     rbac: { create: false, read: false, update: false, delete: false },                                                                                          
 //     users_management: { create: false, read: false, update: false, delete: false },                                                                                                                                                                                                                       
-//     monitoring: { create: false, read: false, update: false, delete: false }                                                                                   
-// } 
+//     monitoring: { create: false, read: false, update: false, delete: false },
+//     global_config: { read:false, update:false},                                                                                   
+// }
 
+// Modules list
 const module_names = [
     ['rbac', 'Roles'],
     ['users_management', 'Users'],
     ['monitoring', 'Monitoring'],
     ['custom_groups', 'Custom Groups'],
+    ['global_configuration', 'Global Configuration']
 ];
 
+// Restricted Modules 
+const NO_CREATE_DELETE = ['global_config', 'global_configuration'];
+
+// To map module_key
 const MODULE_NAME_MAP = Object.fromEntries(module_names);
 
-var initialState_modules = {}
+let initialState_modules = {};
 
-for(let module of module_names){
-    initialState_modules[module[0]] = {
-        name: module[1],
-        create: false,
-        read: false,
-        update: false,
-        delete: false
-    };
+for (let module of module_names) {
+    const key = module[0];
+    const displayName = module[1];
+
+    // If module is restricted (no create/delete)
+    if (NO_CREATE_DELETE.includes(key)) {
+        initialState_modules[key] = {
+            name: displayName,
+            read: false,
+            update: false,
+            // delete:false,
+        };
+    } else {
+        // Normal module with full CRUD permissions
+        initialState_modules[key] = {
+            name: displayName,
+            create: false,
+            read: false,
+            update: false,
+            delete: false,
+        };
+    }
 }
 
 export const userModPermSlice = createSlice({
@@ -33,38 +54,66 @@ export const userModPermSlice = createSlice({
 
     reducers: {
         setPermissions: (state, action) => {
-            // ADD NAMES if missing from API response
-            const permissionsWithNames = {};
-            
-            Object.keys(action.payload).forEach((moduleKey) => {
-                const moduleData = action.payload[moduleKey];
-                
-                permissionsWithNames[moduleKey] = {
-                    name: moduleData?.name || MODULE_NAME_MAP[moduleKey] || moduleKey,
-                    create: moduleData?.create ?? false,
-                    read: moduleData?.read ?? false,
-                    update: moduleData?.update ?? false,
-                    delete: moduleData?.delete ?? false,
-                };
-            });
-            
-            return permissionsWithNames;
-        },
-        
-        updatePermissions: (state, action) => {
-            const {module, newPermission} = action.payload;
+            const incoming = action.payload;
+            const updatedPermissions = {};
 
-            if (state.hasOwnProperty(module)){
-                state[module] = {
-                    name: state[module].name || MODULE_NAME_MAP[module] || module,
-                    ...newPermission,
-                };
+            Object.keys(incoming).forEach((moduleKey) => {
+                const moduleData = incoming[moduleKey];
+                const name = moduleData?.name || MODULE_NAME_MAP[moduleKey] || moduleKey;
+
+                if (NO_CREATE_DELETE.includes(moduleKey)) {
+                    // Restricted module with read & update only
+                    updatedPermissions[moduleKey] = {
+                        name,
+                        read: moduleData?.read ?? false,
+                        update: moduleData?.update ?? false,
+                        // delete: moduleData?.delete ?? false,
+                        
+                    };
+                } else {
+                    // Regular modules with CRUD
+                    updatedPermissions[moduleKey] = {
+                        name,
+                        create: moduleData?.create ?? false,
+                        read: moduleData?.read ?? false,
+                        update: moduleData?.update ?? false,
+                        delete: moduleData?.delete ?? false,
+                    };
+                }
+            });
+
+            return updatedPermissions;
+        },
+
+        updatePermissions: (state, action) => {
+            const { module, newPermission } = action.payload;
+
+            if (state.hasOwnProperty(module)) {
+                const current = state[module];
+                const name = current.name || MODULE_NAME_MAP[module] || module;
+
+                if (NO_CREATE_DELETE.includes(module)) {
+                    // Only update read/update
+                    state[module] = {
+                        name,
+                        read: newPermission?.read ?? current.read,
+                        update: newPermission?.update ?? current.update,
+                        // update: newPermission?.delete ?? current.delete,
+                    };
+                } else {
+                    // Update full permissions
+                    state[module] = {
+                        name,
+                        create: newPermission?.create ?? current.create,
+                        read: newPermission?.read ?? current.read,
+                        update: newPermission?.update ?? current.update,
+                        delete: newPermission?.delete ?? current.delete,
+                    };
+                }
             }
         },
-        
-        resetPermissions: (state) => {
-            return initialState_modules;
-        },
+
+        resetPermissions: () => initialState_modules,
     }
 });
 

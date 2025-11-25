@@ -8,7 +8,7 @@ import { useNavigate, Outlet } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import axios from "axios";
 import { useGetDevicesdataQuery, apiSlice } from "../../redux/apiSlice";
-import { resetPermissions } from "../../redux/userModulePermission"; // ADD THIS
+import { resetPermissions } from "../../redux/userModulePermission";
 import { useRefreshSettings } from "../../Contexts/RefreshContext";
 import { useAutoRefresh } from "../../Hooks/useAutoRefresh";
 import { useSidebar } from "../../Contexts/SidebarContext";

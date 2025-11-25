@@ -5,6 +5,8 @@ from BaseApp.models import WebUser
 from rest_framework.decorators import api_view, permission_classes,throttle_classes,authentication_classes
 from BaseApp.utils import JWTCookieAuthentication
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
 from BaseApp.models.roles import *
 import logging
 logger = logging.getLogger('agent_monitoring')
@@ -16,7 +18,7 @@ def get_logged_in_user_details(request):
    
     if not token:
         return JsonResponse({"error": "Unauthorized"}, status=401)
-
+    
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
     except jwt.ExpiredSignatureError:

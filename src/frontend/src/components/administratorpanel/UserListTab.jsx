@@ -7,8 +7,11 @@ import {
   UserPlusIcon,
   XMarkIcon,
   ArrowPathIcon,
+  CheckBadgeIcon,
+  EyeIcon,
+  EyeSlashIcon,
 } from "@heroicons/react/24/outline";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, KeyRound } from "lucide-react";
 import "../index.css";
 import {
   useUpdateUserMutation,
@@ -21,7 +24,7 @@ import { RoleDropdown } from "../permissions/RoleDropdown";
 import UserCreationModal from "./UserCreationModal";
 import RenderIfAllowed from "../Utilities/RenderIfAllowed";
 import { useAuth } from "../../Contexts/AuthContext";
-
+import BulkActionModal, { BULK_ACTION_TYPES } from "./BulkActionModal";
 
 //  EditRoleDropdown: Used in Edit Modal - Shows ALL roles from API
 const EditRoleDropdown = ({
@@ -71,10 +74,9 @@ const EditRoleDropdown = ({
         onClick={handleToggle}
         disabled={isLoading}
         className={`flex items-center justify-between w-full px-3 py-2 text-sm border rounded-lg cursor-pointer transition-all duration-200
-          ${
-            isDarkMode
-              ? "bg-gray-700 text-gray-200 border-gray-600 hover:bg-gray-650 hover:border-gray-500"
-              : "bg-white text-gray-900 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
+          ${isDarkMode
+            ? "bg-gray-700 text-gray-200 border-gray-600 hover:bg-gray-650 hover:border-gray-500"
+            : "bg-white text-gray-900 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
           }
           ${isOpen ? "ring-2 ring-blue-500 ring-opacity-50" : ""}
           ${isLoading ? "opacity-50 cursor-not-allowed" : ""}
@@ -82,19 +84,17 @@ const EditRoleDropdown = ({
       >
         <span>{selectedRoleLabel}</span>
         <ChevronDown
-          className={`w-4 h-4 ml-1 transition-transform duration-200 ${
-            isOpen ? "rotate-180" : "rotate-0"
-          }`}
+          className={`w-4 h-4 ml-1 transition-transform duration-200 ${isOpen ? "rotate-180" : "rotate-0"
+            }`}
         />
       </button>
 
       <div
         className={`absolute top-full mt-1 w-full rounded-lg shadow-lg border z-50 transition-all duration-200 origin-top
           ${isDarkMode ? "bg-gray-700 border-gray-600" : "bg-white border-gray-200"}
-          ${
-            isOpen
-              ? "opacity-100 scale-100 translate-y-0"
-              : "opacity-0 scale-95 -translate-y-1 pointer-events-none"
+          ${isOpen
+            ? "opacity-100 scale-100 translate-y-0"
+            : "opacity-0 scale-95 -translate-y-1 pointer-events-none"
           }
         `}
       >
@@ -107,10 +107,9 @@ const EditRoleDropdown = ({
                 key={role?.value || Math.random()}
                 type="button"
                 className={`w-full text-left px-3 py-2 text-sm transition-colors duration-150
-                  ${
-                    selectedRole === role?.value
-                      ? "bg-blue-500 text-white"
-                      : isDarkMode
+                  ${selectedRole === role?.value
+                    ? "bg-blue-500 text-white"
+                    : isDarkMode
                       ? "text-gray-200 hover:bg-gray-600"
                       : "text-gray-900 hover:bg-gray-100"
                   }`}
@@ -130,11 +129,10 @@ const EditRoleDropdown = ({
   );
 };
 
-
-const UserListTab = ({ isDarkMode = false }) => { 
+const UserListTab = ({ isDarkMode = false }) => {
   // Get user from Auth context
   const { user } = useAuth();
-  
+
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRole, setSelectedRole] = useState("all");
   const [showEditModal, setShowEditModal] = useState(false);
@@ -144,15 +142,170 @@ const UserListTab = ({ isDarkMode = false }) => {
   const [editFormData, setEditFormData] = useState({});
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  //Password Reset Modal State
+  const [showPasswordResetModal, setShowPasswordResetModal] = useState(false);
+  const [passwordResetData, setPasswordResetData] = useState({
+    email: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Multiple user selection
+  const [selectedUsers, setSelectedUsers] = useState([]);
+  const [isActionsDropdownOpen, setIsActionsDropdownOpen] = useState(false);
+  const actionsDropdownRef = useRef(null);
+
+  // BULK MODAL STATE VARIABLES
+  const [showBulkActionModal, setShowBulkActionModal] = useState(false);
+  const [currentBulkAction, setCurrentBulkAction] = useState(null);
+
   //  Fetch users list
   const { data, error, isLoading, refetch } = useGetUsersQuery();
   console.log("Fetched users data:", data);
   const [updateUser] = useUpdateUserMutation();
   const [deleteUser] = useDeleteUserMutation();
-  
+
+  // Password Reset Button Click
+  const handlePasswordReset = (userToReset) => {
+    setSelectedUser(userToReset);
+    setPasswordResetData({
+      email: userToReset?.email || "",
+      newPassword: "",
+      confirmPassword: "",
+    });
+    setShowPasswordResetModal(true);
+  };
+
+  //  Password Reset Submit
+  const handlePasswordResetSubmit = async (e) => {
+    e.preventDefault();
+
+    if (passwordResetData.newPassword !== passwordResetData.confirmPassword) {
+      toast.error("Passwords do not match!");
+      return;
+    }
+
+    if (passwordResetData.newPassword.length < 8) {
+      toast.error("Password must be at least 8 characters long!");
+      return;
+    }
+
+    const loadingToast = toast.loading("Resetting password...");
+
+    try {
+      // Call backend
+      const response = await updateUser({
+        id: selectedUser?.id,
+        password: passwordResetData.newPassword,
+      }).unwrap();
+
+      console.log("Backend response:", response);
+
+      // Extract the updated user info
+      const updatedUser = response?.results?.[0];
+
+      // Build toast message using backend data
+      const message =
+        response?.success && updatedUser
+          ? `Password reset successfully for "${updatedUser.email}"!`
+          : `Password reset successful`;
+
+      toast.update(loadingToast, {
+        render: message,
+        type: "success",
+        isLoading: false,
+        autoClose: 2000,
+      });
+
+      setShowPasswordResetModal(false);
+      setSelectedUser(null);
+      setPasswordResetData({
+        email: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+
+    } catch (error) {
+      console.error("Password reset error:", error);
+
+      let errorMessage = "Unknown error occurred";
+      if (error?.data?.message) {
+        errorMessage = error.data.message;
+      } else if (error?.data?.error) {
+        errorMessage = error.data.error;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
+      toast.update(loadingToast, {
+        render: `Failed to reset password: ${errorMessage}`,
+        type: "error",
+        isLoading: false,
+        autoClose: 5000,
+      });
+    }
+  };
+
+
+  // Handle checkbox selection
+  const handleUserSelect = (userId) => {
+    setSelectedUsers(prev => {
+      if (prev.includes(userId)) {
+        return prev.filter(id => id !== userId);
+      } else {
+        return [...prev, userId];
+      }
+    });
+  };
+
+  // Handle select all
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      // Filter out the current user from selection
+      const selectableUsers = filteredUsers.filter(rowUser => rowUser.id !== user?.id);
+      setSelectedUsers(selectableUsers.map(rowUser => rowUser.id));
+    } else {
+      setSelectedUsers([]);
+    }
+  };
+
+  // BULK ACTION HANDLERS  
+  const handleBulkEditRoles = () => {
+    setIsActionsDropdownOpen(false);
+    setCurrentBulkAction(BULK_ACTION_TYPES.EDIT_ROLES);
+    setShowBulkActionModal(true);
+  };
+
+  const handleBulkEnableEmail = () => {
+    setIsActionsDropdownOpen(false);
+    setCurrentBulkAction(BULK_ACTION_TYPES.ENABLE_EMAIL);
+    setShowBulkActionModal(true);
+  };
+
+  const handleBulkDeleteUsers = () => {
+    setIsActionsDropdownOpen(false);
+    setCurrentBulkAction(BULK_ACTION_TYPES.DELETE_USERS);
+    setShowBulkActionModal(true);
+  };
+
+  const handleBulkToggleStatus = () => {
+    setIsActionsDropdownOpen(false);
+    setCurrentBulkAction(BULK_ACTION_TYPES.TOGGLE_STATUS);
+    setShowBulkActionModal(true);
+  };
+
+  const handleBulkActionSuccess = () => {
+    setSelectedUsers([]);
+    setShowBulkActionModal(false);
+    setCurrentBulkAction(null);
+    refetch();
+  };
+
   //  Fetch ALL roles from API (for edit modal dropdown)
   const { data: rolesData = [], isLoading: rolesLoading, error: rolesError } = useGetRolesQuery();
-  
+
   //  editRoleOptions: For Edit Modal - Contains ALL roles from database with UUIDs
   const editRoleOptions = React.useMemo(() => {
     if (!Array.isArray(rolesData) || rolesData.length === 0) {
@@ -194,6 +347,17 @@ const UserListTab = ({ isDarkMode = false }) => {
     return result;
   }, [data, searchTerm, selectedRole]);
 
+  // Close actions dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (actionsDropdownRef.current && !actionsDropdownRef.current.contains(event.target)) {
+        setIsActionsDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const getRoleBadgeColor = (role) => {
     return isDarkMode ? "bg-gray-700 text-gray-300" : "bg-gray-100 text-gray-800";
   };
@@ -204,8 +368,8 @@ const UserListTab = ({ isDarkMode = false }) => {
         ? "bg-green-900 text-green-300"
         : "bg-green-100 text-green-800"
       : isDarkMode
-      ? "bg-red-900 text-red-300"
-      : "bg-red-100 text-red-800";
+        ? "bg-red-900 text-red-300"
+        : "bg-red-100 text-red-800";
   };
 
   const formatDate = (dateString) => {
@@ -236,91 +400,104 @@ const UserListTab = ({ isDarkMode = false }) => {
   //Initialize edit form with user data (uses role_uuid for API)
   const handleEditUser = (userToEdit) => {
     setSelectedUser(userToEdit);
-    
-    //Find the role UUID from the role name
+
+    // Find the role UUID from the role name
     const matchingRole = editRoleOptions.find(
       role => role.label === userToEdit?.role_name
     );
-    
+
     setEditFormData({
       username: userToEdit?.username || "",
       email: userToEdit?.email || "",
       role: matchingRole?.value || "",
-      is_active: userToEdit?.is_currently_logged_in || false,
+      is_active: userToEdit?.is_active ?? false,
+      is_email_enabled: userToEdit?.is_email_enabled ?? false,
     });
     setShowEditModal(true);
   };
 
   const handleUpdateUser = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    const loadingToast = toast.loading("Updating user...");
+  const loadingToast = toast.loading("Updating user...");
 
-    try {
-      await updateUser({
-        id: selectedUser?.id,
-        admin_id: user?.id,
-        username: editFormData.username,
-        email: editFormData.email,
-        role: editFormData.role,
-      }).unwrap();
+  try {
+    const response = await updateUser({
+      id: selectedUser?.id,
+      username: editFormData.username,
+      email: editFormData.email,
+      role: editFormData.role,
+      is_active: editFormData.is_active,
+      is_email_enabled: editFormData.is_email_enabled,
+    }).unwrap();
 
-      toast.update(loadingToast, {
-        render: `User "${editFormData.username}" updated successfully!`,
-        type: "success",
-        isLoading: false,
-        autoClose: 2000,
-      });
+    console.log("Backend update response:", response);
 
-      setShowEditModal(false);
-      setSelectedUser(null);
-      setEditFormData({});
-      refetch();
-    } catch (error) {
-      console.error("Update error:", error);
+    // Extract updated user object
+    const updatedUser = response?.results?.[0];
 
-      let errorMessage = "Unknown error occurred";
+    // Use backend message
+    const backendMessage = updatedUser?.message;
 
-      if (error?.data) {
-        if (typeof error.data === "string") {
-          errorMessage = error.data;
-        } else if (error.data.message) {
-          errorMessage = error.data.message;
-        } else if (error.data.error) {
-          errorMessage = error.data.error;
-        } else if (error.data.detail) {
-          errorMessage = error.data.detail;
-        } else if (error.data.non_field_errors) {
-          errorMessage = Array.isArray(error.data.non_field_errors)
-            ? error.data.non_field_errors.join(", ")
-            : error.data.non_field_errors;
-        } else {
-          const fieldErrors = [];
-          Object.keys(error.data).forEach((field) => {
-            if (Array.isArray(error.data[field])) {
-              fieldErrors.push(
-                `${field}: ${error.data[field].join(", ")}`
-              );
-            } else if (typeof error.data[field] === "string") {
-              fieldErrors.push(`${field}: ${error.data[field]}`);
-            }
-          });
-          if (fieldErrors.length > 0) {
-            errorMessage = fieldErrors.join("; ");
+    // Show toast with backend message
+    toast.update(loadingToast, {
+      render: backendMessage,
+      type: "success",
+      isLoading: false,
+      autoClose: 2000,
+    });
+
+    // Cleanup
+    setShowEditModal(false);
+    setSelectedUser(null);
+    setEditFormData({});
+    refetch();
+
+  } catch (error) {
+    console.error("Update error:", error);
+
+    let errorMessage = "Unknown error occurred";
+
+    if (error?.data) {
+      if (typeof error.data === "string") {
+        errorMessage = error.data;
+      } else if (error.data.message) {
+        errorMessage = error.data.message;
+      } else if (error.data.error) {
+        errorMessage = error.data.error;
+      } else if (error.data.detail) {
+        errorMessage = error.data.detail;
+      } else if (error.data.non_field_errors) {
+        errorMessage = Array.isArray(error.data.non_field_errors)
+          ? error.data.non_field_errors.join(", ")
+          : error.data.non_field_errors;
+      } else {
+        const fieldErrors = [];
+        Object.keys(error.data).forEach((field) => {
+          if (Array.isArray(error.data[field])) {
+            fieldErrors.push(`${field}: ${error.data[field].join(", ")}`);
+          } else if (typeof error.data[field] === "string") {
+            fieldErrors.push(`${field}: ${error.data[field]}`);
           }
+        });
+        if (fieldErrors.length > 0) {
+          errorMessage = fieldErrors.join("; ");
         }
-      } else if (error?.message) {
-        errorMessage = error.message;
       }
-
-      toast.update(loadingToast, {
-        render: `Failed to update user: ${errorMessage}`,
-        type: "error",
-        isLoading: false,
-        autoClose: 5000,
-      });
+    } else if (error?.message) {
+      errorMessage = error.message;
     }
-  };
+
+    toast.update(loadingToast, {
+      render: `Failed to update user: ${errorMessage}`,
+      type: "error",
+      isLoading: false,
+      autoClose: 5000,
+    });
+  }
+};
+
+
 
   const handleDeleteUser = (userToDelete) => {
     setSelectedUser(userToDelete);
@@ -331,10 +508,10 @@ const UserListTab = ({ isDarkMode = false }) => {
     const loadingToast = toast.loading("Deleting user...");
 
     try {
-      await deleteUser(selectedUser?.id).unwrap();
+      const response = await deleteUser(selectedUser?.id).unwrap();
 
       toast.update(loadingToast, {
-        render: `User "${selectedUser?.username}" deleted successfully!`,
+        render: response?.message,
         type: "success",
         isLoading: false,
         autoClose: 3000,
@@ -343,6 +520,7 @@ const UserListTab = ({ isDarkMode = false }) => {
       setShowDeleteModal(false);
       setSelectedUser(null);
       refetch();
+
     } catch (error) {
       console.error("Delete error:", error);
 
@@ -363,6 +541,7 @@ const UserListTab = ({ isDarkMode = false }) => {
       });
     }
   };
+
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -425,15 +604,14 @@ const UserListTab = ({ isDarkMode = false }) => {
           >
             User Management
           </h2>
-          
+
           <RenderIfAllowed module="users_management" action="create">
             <button
               onClick={() => setShowCreateUserModal(true)}
-              className={`p-2 rounded-lg transition-colors ${
-                isDarkMode
-                  ? "bg-blue-900/20 text-blue-400 hover:bg-blue-900/40"
-                  : "bg-blue-100 text-blue-600 hover:bg-blue-200"
-              }`}
+              className={`p-2 rounded-lg transition-colors ${isDarkMode
+                ? "bg-blue-900/20 text-blue-400 hover:bg-blue-900/40"
+                : "bg-blue-100 text-blue-600 hover:bg-blue-200"
+                }`}
               title="Add New User"
             >
               <UserPlusIcon className="w-5 h-5" />
@@ -443,11 +621,10 @@ const UserListTab = ({ isDarkMode = false }) => {
           <button
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className={`p-2 rounded-lg transition-colors ${
-              isDarkMode
-                ? "bg-green-900/20 text-green-400 hover:bg-green-900/40"
-                : "bg-green-100 text-green-600 hover:bg-green-200"
-            } ${isRefreshing ? "opacity-50 cursor-not-allowed" : ""}`}
+            className={`p-2 rounded-lg transition-colors ${isDarkMode
+              ? "bg-green-900/20 text-green-400 hover:bg-green-900/40"
+              : "bg-green-100 text-green-600 hover:bg-green-200"
+              } ${isRefreshing ? "opacity-50 cursor-not-allowed" : ""}`}
             title="Refresh Users"
           >
             <ArrowPathIcon
@@ -468,6 +645,96 @@ const UserListTab = ({ isDarkMode = false }) => {
 
         {/* Search and Filter */}
         <div className="flex items-center space-x-4 w-full sm:w-auto">
+          {/* Actions Dropdown */}
+          <div className="relative" ref={actionsDropdownRef}>
+            <button
+              onClick={() => setIsActionsDropdownOpen(!isActionsDropdownOpen)}
+              disabled={selectedUsers.length === 0}
+              className={`flex items-center justify-between px-3 py-1.5 text-xs border rounded-md cursor-pointer min-w-[120px] transition-all duration-200 hover:shadow-md
+                ${selectedUsers.length === 0
+                  ? isDarkMode
+                    ? "bg-gray-700 text-gray-500 border-gray-600 cursor-not-allowed opacity-50"
+                    : "bg-gray-200 text-gray-400 border-gray-300 cursor-not-allowed opacity-50"
+                  : isDarkMode
+                    ? "bg-gray-700 text-gray-200 border-gray-600 hover:bg-gray-650 hover:border-gray-500"
+                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
+                }
+                ${isActionsDropdownOpen && selectedUsers.length > 0 ? "ring-2 ring-blue-500 ring-opacity-50" : ""}
+              `}
+              title={selectedUsers.length === 0 ? "Select users to perform actions" : "Bulk actions"}
+            >
+              <div className="flex items-center">
+                <span>Actions</span>
+              </div>
+              <ChevronDown
+                className={`w-3 h-3 ml-1 transition-transform duration-200 ${isActionsDropdownOpen ? "rotate-180" : "rotate-0"
+                  }`}
+              />
+            </button>
+
+            {/* Dropdown Menu */}
+            <div
+              className={`absolute left-0 top-full mt-1 w-48 rounded-md shadow-lg border z-50 transition-all duration-200 origin-top
+                ${isDarkMode
+                  ? "bg-gray-700 border-gray-600"
+                  : "bg-white border-gray-200"
+                }
+                ${isActionsDropdownOpen && selectedUsers.length > 0
+                  ? "opacity-100 scale-100 translate-y-0"
+                  : "opacity-0 scale-95 -translate-y-1 pointer-events-none"
+                }
+              `}
+            >
+              <div className="py-1">
+                <button
+                  onClick={handleBulkEditRoles}
+                  className={`w-full text-left px-3 py-2 text-xs transition-colors duration-150
+                    ${isDarkMode
+                      ? "text-gray-200 hover:bg-gray-600"
+                      : "text-gray-700 hover:bg-gray-100"
+                    }`}
+                >
+                  Edit Roles
+                </button>
+
+                <button
+                  onClick={handleBulkEnableEmail}
+                  className={`w-full text-left px-3 py-2 text-xs transition-colors duration-150
+                    ${isDarkMode
+                      ? "text-gray-200 hover:bg-gray-600"
+                      : "text-gray-700 hover:bg-gray-100"
+                    }`}
+                >
+                  Enable Email Verification
+                </button>
+
+                <button
+                  onClick={handleBulkToggleStatus}
+                  className={`w-full text-left px-3 py-2 text-xs transition-colors duration-150
+                    ${isDarkMode
+                      ? "text-gray-200 hover:bg-gray-600"
+                      : "text-gray-700 hover:bg-gray-100"
+                    }`}
+                >
+                  Enable/Disable Users
+                </button>
+
+                <div className={`border-t ${isDarkMode ? "border-gray-600" : "border-gray-200"}`} />
+
+                <button
+                  onClick={handleBulkDeleteUsers}
+                  className={`w-full text-left px-3 py-2 text-xs transition-colors duration-150
+                    ${isDarkMode
+                      ? "text-red-400 hover:bg-red-900/20"
+                      : "text-red-600 hover:bg-red-50"
+                    }`}
+                >
+                  Delete Users
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div className="relative flex-1 sm:flex-none">
             <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
@@ -475,11 +742,10 @@ const UserListTab = ({ isDarkMode = false }) => {
               placeholder="Search users..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className={`pl-10 pr-4 py-1 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                isDarkMode
-                  ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400"
-                  : "bg-white border-gray-300 text-gray-900"
-              }`}
+              className={`pl-10 pr-4 py-1 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${isDarkMode
+                ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                : "bg-white border-gray-300 text-gray-900"
+                }`}
             />
           </div>
 
@@ -536,6 +802,25 @@ const UserListTab = ({ isDarkMode = false }) => {
               >
                 <tr>
                   <th
+                    className="w-[10%] px-3 py-3 text-left text-xs font-medium uppercase tracking-wider"
+                    style={{ color: isDarkMode ? "#9CA3AF" : "#6B7280" }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={
+                        selectedUsers.length > 0 &&
+                        selectedUsers.length === filteredUsers.filter(rowUser => rowUser.id !== user?.id).length &&
+                        filteredUsers.filter(rowUser => rowUser.id !== user?.id).length > 0
+                      }
+                      onChange={handleSelectAll}
+                      className={`w-4 h-4 cursor-pointer rounded border ${isDarkMode
+                        ? "border-gray-500 text-blue-400 accent-blue-500"
+                        : "border-gray-300 text-blue-600 accent-blue-600"
+                        }`}
+                    />
+                  </th>
+
+                  <th
                     className="w-[20%] px-3 py-3 text-left text-xs font-medium uppercase tracking-wider"
                     style={{ color: isDarkMode ? "#9CA3AF" : "#6B7280" }}
                   >
@@ -586,8 +871,8 @@ const UserListTab = ({ isDarkMode = false }) => {
                             ? "#1F2937"
                             : "#FFFFFF"
                           : isDarkMode
-                          ? "#111827"
-                          : "#F9FAFB",
+                            ? "#111827"
+                            : "#F9FAFB",
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.backgroundColor = isDarkMode
@@ -601,10 +886,28 @@ const UserListTab = ({ isDarkMode = false }) => {
                             ? "#1F2937"
                             : "#FFFFFF"
                           : isDarkMode
-                          ? "#111827"
-                          : "#F9FAFB";
+                            ? "#111827"
+                            : "#F9FAFB";
                     }}
                   >
+                    {/*Checkbox Column */}
+                    <td className="w-[10%] px-3 py-2 text-left align-middle">
+                      <input
+                        type="checkbox"
+                        checked={selectedUsers.includes(rowUser.id)}
+                        onChange={() => handleUserSelect(rowUser.id)}
+                        disabled={rowUser?.id === user?.id}
+                        className={`w-4 h-4 cursor-pointer rounded border ${rowUser?.id === user?.id
+                          ? "cursor-not-allowed opacity-50"
+                          : ""
+                          } ${isDarkMode
+                            ? "border-gray-500 text-blue-400 accent-blue-500"
+                            : "border-gray-300 text-blue-600 accent-blue-600"
+                          }`}
+                        title={rowUser?.id === user?.id ? "Cannot select your own account" : ""}
+                      />
+                    </td>
+
                     <td className="w-[20%] px-3 py-2">
                       <div>
                         <div
@@ -616,12 +919,22 @@ const UserListTab = ({ isDarkMode = false }) => {
                         >
                           {rowUser?.username || "N/A"}
                         </div>
-                        <div
-                          className="text-xs truncate"
-                          style={{ color: isDarkMode ? "#9CA3AF" : "#6B7280" }}
-                          title={rowUser?.email}
-                        >
-                          {rowUser?.email || "N/A"}
+                        <div className="flex items-center gap-1">
+                          <div
+                            className="text-xs truncate"
+                            style={{ color: isDarkMode ? "#9CA3AF" : "#6B7280" }}
+                            title={rowUser?.email}
+                          >
+                            {rowUser?.email || "N/A"}
+                          </div>
+                          {/* Verified Badge */}
+                          {rowUser?.is_email_verified && (
+                            <CheckBadgeIcon
+                              className="w-4 h-4 flex-shrink-0"
+                              style={{ color: isDarkMode ? "#34D399" : "#10B981" }}
+                              title="Email Verified"
+                            />
+                          )}
                         </div>
                       </div>
                     </td>
@@ -643,10 +956,10 @@ const UserListTab = ({ isDarkMode = false }) => {
                       <div className="flex justify-center items-center h-full">
                         <span
                           className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeColor(
-                            rowUser?.is_currently_logged_in
+                            rowUser?.is_active
                           )}`}
                         >
-                          {rowUser?.is_currently_logged_in
+                          {rowUser?.is_active
                             ? "Active"
                             : "Inactive"}
                         </span>
@@ -688,6 +1001,7 @@ const UserListTab = ({ isDarkMode = false }) => {
                       </span>
                     </td>
 
+                    {/* UPDATED: Actions Column with Password Reset Button */}
                     <td className="w-[8%] px-2 py-2 text-sm font-medium">
                       <div className="flex items-center justify-center space-x-1">
                         {/* Check if this row is the current logged-in user */}
@@ -696,18 +1010,24 @@ const UserListTab = ({ isDarkMode = false }) => {
                           <>
                             <button
                               disabled
-                              className={`p-1 rounded cursor-not-allowed opacity-50 ${
-                                isDarkMode ? "text-gray-600" : "text-gray-400"
-                              }`}
+                              className={`p-1 rounded cursor-not-allowed opacity-50 ${isDarkMode ? "text-gray-600" : "text-gray-400"
+                                }`}
                               title="Cannot edit your own account"
                             >
                               <PencilIcon className="w-3.5 h-3.5" />
                             </button>
                             <button
                               disabled
-                              className={`p-1 rounded cursor-not-allowed opacity-50 ${
-                                isDarkMode ? "text-gray-600" : "text-gray-400"
-                              }`}
+                              className={`p-1 rounded cursor-not-allowed opacity-50 ${isDarkMode ? "text-gray-600" : "text-gray-400"
+                                }`}
+                              title="Cannot reset your own password here"
+                            >
+                              <KeyRound className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              disabled
+                              className={`p-1 rounded cursor-not-allowed opacity-50 ${isDarkMode ? "text-gray-600" : "text-gray-400"
+                                }`}
                               title="Cannot delete your own account"
                             >
                               <TrashIcon className="w-3.5 h-3.5" />
@@ -719,25 +1039,37 @@ const UserListTab = ({ isDarkMode = false }) => {
                             <RenderIfAllowed module="users_management" action="update">
                               <button
                                 onClick={() => handleEditUser(rowUser)}
-                                className={`p-1 rounded transition-colors ${
-                                  isDarkMode
-                                    ? "text-blue-400 hover:text-blue-300 hover:bg-blue-900/20"
-                                    : "text-blue-600 hover:text-blue-900 hover:bg-blue-50"
-                                }`}
+                                className={`p-1 rounded transition-colors ${isDarkMode
+                                  ? "text-blue-400 hover:text-blue-300 hover:bg-blue-900/20"
+                                  : "text-blue-600 hover:text-blue-900 hover:bg-blue-50"
+                                  }`}
                                 title="Edit User"
                               >
                                 <PencilIcon className="w-3.5 h-3.5" />
                               </button>
                             </RenderIfAllowed>
 
+                            {/* UPDATED: Password Reset Button */}
+                            <RenderIfAllowed module="users_management" action="update">
+                              <button
+                                onClick={() => handlePasswordReset(rowUser)}
+                                className={`p-1 rounded transition-colors ${isDarkMode
+                                  ? "text-yellow-400 hover:text-yellow-300 hover:bg-yellow-900/20"
+                                  : "text-yellow-600 hover:text-yellow-900 hover:bg-yellow-50"
+                                  }`}
+                                title="Reset Password"
+                              >
+                                <KeyRound className="w-3.5 h-3.5" />
+                              </button>
+                            </RenderIfAllowed>
+
                             <RenderIfAllowed module="users_management" action="delete">
                               <button
                                 onClick={() => handleDeleteUser(rowUser)}
-                                className={`p-1 rounded transition-colors ${
-                                  isDarkMode
-                                    ? "text-red-400 hover:text-red-300 hover:bg-red-900/20"
-                                    : "text-red-600 hover:text-red-900 hover:bg-red-50"
-                                }`}
+                                className={`p-1 rounded transition-colors ${isDarkMode
+                                  ? "text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                                  : "text-red-600 hover:text-red-900 hover:bg-red-50"
+                                  }`}
                                 title="Delete User"
                               >
                                 <TrashIcon className="w-3.5 h-3.5" />
@@ -826,11 +1158,10 @@ const UserListTab = ({ isDarkMode = false }) => {
                           username: e.target.value,
                         })
                       }
-                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
-                        isDarkMode
-                          ? "bg-gray-700 border-gray-600 text-white"
-                          : "bg-white border-gray-300 text-gray-900"
-                      }`}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${isDarkMode
+                        ? "bg-gray-700 border-gray-600 text-white"
+                        : "bg-white border-gray-300 text-gray-900"
+                        }`}
                       required
                     />
                   </div>
@@ -853,11 +1184,10 @@ const UserListTab = ({ isDarkMode = false }) => {
                           email: e.target.value,
                         })
                       }
-                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
-                        isDarkMode
-                          ? "bg-gray-700 border-gray-600 text-white"
-                          : "bg-white border-gray-300 text-gray-900"
-                      }`}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${isDarkMode
+                        ? "bg-gray-700 border-gray-600 text-white"
+                        : "bg-white border-gray-300 text-gray-900"
+                        }`}
                       required
                     />
                   </div>
@@ -881,7 +1211,7 @@ const UserListTab = ({ isDarkMode = false }) => {
                       isDarkMode={isDarkMode}
                       isLoading={rolesLoading}
                     />
-                    
+
                     {rolesError && (
                       <p className="mt-0.5 text-xs text-red-600">
                         Error loading roles. Please try again.
@@ -889,39 +1219,84 @@ const UserListTab = ({ isDarkMode = false }) => {
                     )}
                   </div>
 
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="is_active"
-                      checked={editFormData.is_active || false}
-                      onChange={(e) =>
-                        setEditFormData({
-                          ...editFormData,
-                          is_active: e.target.checked,
-                        })
-                      }
-                      className="mr-2"
-                    />
-                    <label
-                      htmlFor="is_active"
-                      className="text-sm font-medium"
-                      style={{
-                        color: isDarkMode ? "#D1D5DB" : "#374151",
-                      }}
+                  {/* User Status Checkboxes Section */}
+                  <div className={`p-3 rounded-lg border ${isDarkMode
+                    ? 'bg-gray-700/50 border-gray-600'
+                    : 'bg-gray-50 border-gray-200'
+                    }`}>
+                    <div className="space-y-2">
+                      {/* Active User Checkbox */}
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          id="is_active"
+                          checked={editFormData.is_active || false}
+                          onChange={(e) =>
+                            setEditFormData({
+                              ...editFormData,
+                              is_active: e.target.checked,
+                            })
+                          }
+                          className={`w-4 h-4 rounded border transition-colors cursor-pointer ${isDarkMode
+                            ? 'border-gray-500 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-700'
+                            : 'border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-offset-white'
+                            }`}
+                        />
+                        <label
+                          htmlFor="is_active"
+                          className="ml-2 text-sm font-medium cursor-pointer"
+                          style={{
+                            color: isDarkMode ? "#D1D5DB" : "#374151",
+                          }}
+                        >
+                          Active User
+                        </label>
+                      </div>
+
+                      {/* EMAIL NOTIFICATIONS CHECKBOX */}
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          id="is_email_enabled"
+                          checked={editFormData.is_email_enabled || false}
+                          onChange={(e) =>
+                            setEditFormData({
+                              ...editFormData,
+                              is_email_enabled: e.target.checked,
+                            })
+                          }
+                          className={`w-4 h-4 rounded border transition-colors cursor-pointer ${isDarkMode
+                            ? 'border-gray-500 text-green-500 focus:ring-green-500 focus:ring-offset-gray-700'
+                            : 'border-gray-300 text-green-600 focus:ring-green-500 focus:ring-offset-white'
+                            }`}
+                        />
+                        <label
+                          htmlFor="is_email_enabled"
+                          className="ml-2 text-sm font-medium cursor-pointer"
+                          style={{
+                            color: isDarkMode ? "#D1D5DB" : "#374151",
+                          }}
+                        >
+                          Enable Email Verification
+                        </label>
+                      </div>
+                    </div>
+                    <p
+                      className="mt-2 text-xs"
+                      style={{ color: isDarkMode ? '#9CA3AF' : '#6B7280' }}
                     >
-                      Active User
-                    </label>
+                      Control user account status and email verification
+                    </p>
                   </div>
 
                   <div className="flex justify-end space-x-3 pt-4">
                     <button
                       type="button"
                       onClick={() => setShowEditModal(false)}
-                      className={`px-4 py-2 rounded-lg ${
-                        isDarkMode
-                          ? "text-gray-300 bg-gray-600 hover:bg-gray-500"
-                          : "text-gray-700 bg-gray-200 hover:bg-gray-300"
-                      }`}
+                      className={`px-4 py-2 rounded-lg ${isDarkMode
+                        ? "text-gray-300 bg-gray-600 hover:bg-gray-500"
+                        : "text-gray-700 bg-gray-200 hover:bg-gray-300"
+                        }`}
                     >
                       Cancel
                     </button>
@@ -1010,11 +1385,10 @@ const UserListTab = ({ isDarkMode = false }) => {
               </button>
               <button
                 onClick={() => setShowDeleteModal(false)}
-                className={`mt-3 w-full inline-flex justify-center rounded-md border shadow-sm px-4 py-2 text-base font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:w-auto sm:text-sm transition-colors ${
-                  isDarkMode
-                    ? "border-gray-600 bg-gray-600 text-gray-300 hover:bg-gray-500"
-                    : "border-gray-300 bg-gray-200 text-gray-700 hover:bg-gray-300"
-                }`}
+                className={`mt-3 w-full inline-flex justify-center rounded-md border shadow-sm px-4 py-2 text-base font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:w-auto sm:text-sm transition-colors ${isDarkMode
+                  ? "border-gray-600 bg-gray-600 text-gray-300 hover:bg-gray-500"
+                  : "border-gray-300 bg-gray-200 text-gray-700 hover:bg-gray-300"
+                  }`}
               >
                 Cancel
               </button>
@@ -1022,6 +1396,226 @@ const UserListTab = ({ isDarkMode = false }) => {
           </div>
         </div>
       )}
+
+      {/* Password Reset Modal */}
+      {showPasswordResetModal && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center backdrop-blur-sm"
+          style={{ backgroundColor: "rgba(0, 0, 0, 0.1)" }}
+          onClick={() => setShowPasswordResetModal(false)}
+        >
+          <div
+            className="rounded-xl p-6 max-w-md w-full relative shadow-2xl border mx-4"
+            style={{
+              background: isDarkMode
+                ? "rgba(15, 23, 42, 0.8)"
+                : "rgba(246, 245, 248, 1)",
+              borderColor: isDarkMode
+                ? "rgba(51, 65, 85, 0.4)"
+                : "rgba(203, 213, 225, 0.3)",
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="absolute top-0 right-0 pt-4 pr-4">
+              <button
+                onClick={() => setShowPasswordResetModal(false)}
+                className={
+                  isDarkMode
+                    ? "text-gray-400 hover:text-gray-300"
+                    : "text-gray-400 hover:text-gray-600"
+                }
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="sm:flex sm:items-start">
+              <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
+                <h3
+                  className="text-lg leading-6 font-medium mb-4"
+                  style={{ color: isDarkMode ? "#FFF" : "#111827" }}
+                >
+                  Reset Password
+                </h3>
+
+                <form onSubmit={handlePasswordResetSubmit} className="space-y-4">
+                  {/* Email (Read-only) */}
+                  <div>
+                    <label
+                      className="block text-sm font-medium mb-1"
+                      style={{
+                        color: isDarkMode ? "#D1D5DB" : "#374151",
+                      }}
+                    >
+                      User Email
+                    </label>
+                    <input
+                      type="email"
+                      value={passwordResetData.email}
+                      readOnly
+                      className={`w-full px-3 py-2 border rounded-lg cursor-not-allowed opacity-70 ${isDarkMode
+                        ? "bg-gray-700 border-gray-600 text-gray-400"
+                        : "bg-gray-100 border-gray-300 text-gray-600"
+                        }`}
+                    />
+                  </div>
+
+                  {/* New Password */}
+                  <div>
+                    <label
+                      className="block text-sm font-medium mb-1"
+                      style={{
+                        color: isDarkMode ? "#D1D5DB" : "#374151",
+                      }}
+                    >
+                      New Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showNewPassword ? "text" : "password"}
+                        value={passwordResetData.newPassword}
+                        onChange={(e) =>
+                          setPasswordResetData({
+                            ...passwordResetData,
+                            newPassword: e.target.value,
+                          })
+                        }
+                        className={`w-full px-3 py-2 pr-10 border rounded-lg focus:ring-2 focus:ring-blue-500 ${isDarkMode
+                          ? "bg-gray-700 border-gray-600 text-white"
+                          : "bg-white border-gray-300 text-gray-900"
+                          }`}
+                        placeholder="Enter new password"
+                        required
+                        minLength={8}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded transition-colors"
+                        tabIndex={-1}
+                      >
+                        {showNewPassword ? (
+                          <EyeSlashIcon
+                            className="w-5 h-5"
+                            style={{ color: isDarkMode ? "#9CA3AF" : "#6B7280" }}
+                          />
+                        ) : (
+                          <EyeIcon
+                            className="w-5 h-5"
+                            style={{ color: isDarkMode ? "#9CA3AF" : "#6B7280" }}
+                          />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Confirm Password */}
+                  <div>
+                    <label
+                      className="block text-sm font-medium mb-1"
+                      style={{
+                        color: isDarkMode ? "#D1D5DB" : "#374151",
+                      }}
+                    >
+                      Confirm Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showConfirmPassword ? "text" : "password"}
+                        value={passwordResetData.confirmPassword}
+                        onChange={(e) =>
+                          setPasswordResetData({
+                            ...passwordResetData,
+                            confirmPassword: e.target.value,
+                          })
+                        }
+                        className={`w-full px-3 py-2 pr-10 border rounded-lg focus:ring-2 focus:ring-blue-500 ${isDarkMode
+                          ? "bg-gray-700 border-gray-600 text-white"
+                          : "bg-white border-gray-300 text-gray-900"
+                          }`}
+                        placeholder="Confirm new password"
+                        required
+                        minLength={8}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded transition-colors"
+                        tabIndex={-1}
+                      >
+                        {showConfirmPassword ? (
+                          <EyeSlashIcon
+                            className="w-5 h-5"
+                            style={{ color: isDarkMode ? "#9CA3AF" : "#6B7280" }}
+                          />
+                        ) : (
+                          <EyeIcon
+                            className="w-5 h-5"
+                            style={{ color: isDarkMode ? "#9CA3AF" : "#6B7280" }}
+                          />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+
+                  {/* Password Match Indicator */}
+                  {passwordResetData.newPassword && passwordResetData.confirmPassword && (
+                    <p
+                      className="text-xs"
+                      style={{
+                        color:
+                          passwordResetData.newPassword === passwordResetData.confirmPassword
+                            ? "#10B981"
+                            : "#EF4444",
+                      }}
+                    >
+                      {passwordResetData.newPassword === passwordResetData.confirmPassword
+                        ? "✓ Passwords match"
+                        : "✗ Passwords do not match"}
+                    </p>
+                  )}
+
+                  {/* Buttons */}
+                  <div className="flex justify-end space-x-3 pt-4">
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswordResetModal(false)}
+                      className={`px-4 py-2 rounded-lg ${isDarkMode
+                        ? "text-gray-300 bg-gray-600 hover:bg-gray-500"
+                        : "text-gray-700 bg-gray-200 hover:bg-gray-300"
+                        }`}
+                    >
+                      Close
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-[#6366f1] text-white rounded-lg hover:bg-[#6366f1]/80"
+                    >
+                      Apply
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/*BULK ACTION MODAL HERE */}
+      <BulkActionModal
+        show={showBulkActionModal}
+        onHide={() => {
+          setShowBulkActionModal(false);
+          setCurrentBulkAction(null);
+        }}
+        actionType={currentBulkAction}
+        selectedUsers={selectedUsers}
+        isDarkMode={isDarkMode}
+        onSuccess={handleBulkActionSuccess}
+      />
     </>
   );
 };

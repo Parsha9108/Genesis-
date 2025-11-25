@@ -38,6 +38,7 @@ class PermissionSet(models.Model):
         ("users_management", "Users"),
         ("monitoring", "Monitoring"),
         ("custom_groups", "Custom Groups"),
+        ("global_configuration","Global configuration"),
     )
 
     role = models.ForeignKey(Role, on_delete=models.CASCADE, to_field='uuid', db_column='role_uuid')
