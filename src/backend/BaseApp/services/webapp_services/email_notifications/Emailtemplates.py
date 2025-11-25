@@ -147,7 +147,7 @@ class EmailTemplates():
         change_types = list(changes_dict.keys())
         if len(change_types) == 1 and 'password' in change_types:
             subject = "Password Changed - Security Alert"
-            main_title = "Password Changed"
+            main_title = "Password Updated"
         elif len(change_types) == 1 and 'role' in change_types:
             subject = "Account Role Updated"
             main_title = "Role Update"
@@ -789,6 +789,121 @@ class EmailTemplates():
     DASHBOARD LINK
     --------------
     https://192.168.100.11/app/dashboard/
+
+    ---
+    Genesis Central Server
+    Email: support@genesis.com | Phone: +91 821-7239767
+    © {datetime.now().year} All rights reserved.
+    This is an automated message. Please do not reply to this email.
+        """
+        
+        return html_content, plain_text, subject
+
+
+    @staticmethod
+    def get_password_reset_email_template(email, reset_link):
+        """Professional HTML email template for password reset"""
+        
+        subject = 'Reset Your Password - Genesis Central Server'
+        
+        html_content = f"""
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Password Reset</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+            
+            <div style="border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px;">
+                <h2 style="margin: 0; color: #000;">Genesis Central Server</h2>
+                <p style="margin: 5px 0 0 0; color: #666;">Password Reset Request</p>
+            </div>
+            
+            <p>Dear User,</p>
+            
+            <p>You recently requested to reset your password for your Genesis Central Server account. Click the button below to proceed with resetting your password.</p>
+            
+            <div style="background-color: #f5f5f5; border: 1px solid #ddd; padding: 15px; margin: 20px 0;">
+                <p style="margin: 0 0 10px 0; font-size: 14px; color: #666;"><strong>Account Information:</strong></p>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <td style="padding: 5px 0; width: 40%;"><strong>Email:</strong></td>
+                        <td style="padding: 5px 0;">{email}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 5px 0;"><strong>Request Time:</strong></td>
+                        <td style="padding: 5px 0;">{datetime.now().strftime('%B %d, %Y at %I:%M %p')}</td>
+                    </tr>
+                </table>
+            </div>
+            
+            <div style="background-color: #fff9e6; border-left: 4px solid #ffa500; padding: 15px; margin: 20px 0;">
+                <p style="margin: 0 0 10px 0;"><strong>Important Security Information:</strong></p>
+                <ul style="margin: 0; padding-left: 20px;">
+                    <li>This password reset link expires in <strong>15 minutes</strong></li>
+                    <li>If you did not request a password reset, please ignore this email</li>
+                    <li>Your password will not be changed until you access the link and complete the process</li>
+                    <li>Never share your password reset link with anyone</li>
+                </ul>
+            </div>
+            
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{reset_link}" 
+                style="display: inline-block; padding: 12px 30px; background-color: #007bff; color: #fff; text-decoration: none; border-radius: 4px; font-weight: bold;">
+                    Reset Password
+                </a>
+            </div>
+            
+            <p style="font-size: 14px; color: #666;">
+                If the button above doesn't work, copy and paste this link into your browser:
+            </p>
+            <p style="font-size: 12px; word-break: break-all; background: #f5f5f5; padding: 10px; border: 1px solid #ddd;">
+                {reset_link}
+            </p>
+            
+            <p style="font-size: 14px; color: #666; margin-top: 20px;">
+                If you did not request this password reset, please contact our support team immediately at <a href="mailto:support@genesis.com" style="color: #007bff;">support@genesis.com</a>
+            </p>
+            
+            <div style="border-top: 1px solid #ddd; margin-top: 30px; padding-top: 20px; font-size: 12px; color: #666;">
+                <p><strong>Genesis Central Server</strong></p>
+                <p>Email: support@genesis.com | Phone: +91 821-7239767</p>
+                <p>© {datetime.now().year} All rights reserved.</p>
+                <p style="margin: 10px 0 0 0;">This is an automated message. Please do not reply to this email.</p>
+            </div>
+            
+        </body>
+        </html>
+        """
+        
+        # Plain text version
+        plain_text = f"""
+    GENESIS CENTRAL SERVER
+    Password Reset Request
+
+    Dear User,
+
+    You recently requested to reset your password for your Genesis account. Click the link below to proceed with resetting your password.
+
+    ACCOUNT INFORMATION
+    -------------------
+    Email: {email}
+    Request Time: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}
+
+    IMPORTANT SECURITY INFORMATION
+    -------------------------------
+    • This password reset link expires in 15 minutes
+    • If you did not request a password reset, please ignore this email
+    • Your password will not be changed until you access the link and complete the process
+    • Never share your password reset link with anyone
+
+    RESET PASSWORD LINK
+    -------------------
+    {reset_link}
+
+    If you did not request this password reset, please contact our support team immediately at support@genesis.com
 
     ---
     Genesis Central Server

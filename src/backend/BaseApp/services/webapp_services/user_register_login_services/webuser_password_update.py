@@ -11,9 +11,8 @@ from ..email_notifications.Sendemail_service import EmailService
 logger=logging.getLogger('agent_monitoring')
 def update_password(request):
     try:
-        logger.info(f"Password update request data: {request.data}")
+       
         token = request.query_params.get('token')
-        logger.info(f"Received token: {token}") 
         password = request.data.get('password')
         email = request.data.get('email')
         
@@ -47,7 +46,7 @@ def update_password(request):
         logger.info(f"Updating password for user ID: {user.username}")
         user.password = make_password(password)
         user.save()
-        change_time = datetime.datetime.now().strftime('%B %d, %Y at %I:%M %p')
+        change_time = datetime.now().strftime('%B %d, %Y at %I:%M %p')
 
         # Track password change
         changes = {}

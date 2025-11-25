@@ -66,11 +66,8 @@ class EmailService:
             
             if not subject:
                 error_msg = "Email subject is required"
-                logger.error(f"❌ {error_msg}")
                 return False, error_msg
-            
-           
-            
+         
             # Validate email content
             if not plain_text:
                 error_msg = "Plain text email content is required"
