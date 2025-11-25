@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { CheckIcon, ShieldCheckIcon, UserGroupIcon, UserIcon } from '@heroicons/react/24/outline';
+import { CheckIcon, ShieldCheckIcon, UserGroupIcon, UserIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { ArrowPathIcon } from '@heroicons/react/24/solid';
 import { useUpdateUserMutation } from '../../redux/userApiSlice'; 
+import RenderIfAllowed from '../Utilities/RenderIfAllowed';
+import { useSelector } from 'react-redux';
 
 const ProfileTab = ({ user, isDarkMode = false }) => {
   
   const [formData, setFormData] = useState({
     username: user?.username || '',
     email: user?.email || '',
+    newPassword: '',
+    confirmPassword: '',
   });
   
   const [originalData, setOriginalData] = useState({
@@ -16,9 +20,15 @@ const ProfileTab = ({ user, isDarkMode = false }) => {
     email: user?.email || '',
   });
 
+  // Password visibility states
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const [updateProfile, { isLoading: isUpdating }] = useUpdateUserMutation();
 
-  const isAdmin = user?.role?.toLowerCase() === 'Administrator' || 'Admin';
+  // Permission check 
+  const userPermissions = useSelector((state) => state.userModPerm?.users_management);
+  const hasUpdatePermission = userPermissions?.update || false;
 
   useEffect(() => {
     const newOriginalData = {
@@ -26,26 +36,40 @@ const ProfileTab = ({ user, isDarkMode = false }) => {
       email: user?.email || '',
     };
     setOriginalData(newOriginalData);
-    setFormData(newOriginalData);
+    setFormData({
+      ...newOriginalData,
+      newPassword: '',
+      confirmPassword: '',
+    });
   }, [user]);
 
   const hasChanges = () => {
     return formData.username !== originalData.username || 
-           formData.email !== originalData.email;
+           formData.email !== originalData.email ||
+           formData.newPassword !== '';
   };
 
   const isFormValid = () => {
-    return formData.username.trim() !== '' && 
-           formData.email.trim() !== '' &&
-           /\S+@\S+\.\S+/.test(formData.email);
+    const basicValid = formData.username.trim() !== '' && 
+                       formData.email.trim() !== '' &&
+                       /\S+@\S+\.\S+/.test(formData.email);
+    
+    // If attempting to change password, validate password fields
+    if (formData.newPassword !== '') {
+      return basicValid && 
+             formData.newPassword.length >= 8 &&
+             formData.newPassword === formData.confirmPassword;
+    }
+    
+    return basicValid;
   };
 
   const isUpdateButtonEnabled = () => {
-    return isAdmin && hasChanges() && isFormValid() && !isUpdating;
+    return hasUpdatePermission && hasChanges() && isFormValid() && !isUpdating;
   };
 
   const handleChange = (e) => {
-    if (!isAdmin) return;
+    if (!hasUpdatePermission) return; // Prevent changes if no permission
     
     setFormData({
       ...formData,
@@ -54,69 +78,99 @@ const ProfileTab = ({ user, isDarkMode = false }) => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!isAdmin || !hasChanges() || !isFormValid()) return;
+  e.preventDefault();
 
-    try {
-      const updateData = {};
-      updateData.id = user.id;
-      if (formData.username !== originalData.username) {
-        updateData.username = formData.username;
-      }
-      if (formData.email !== originalData.email) {
-        updateData.email = formData.email;
-      }
+  if (!hasUpdatePermission || !hasChanges() || !isFormValid()) return;
 
-      const result = await updateProfile(updateData).unwrap();
-      
-      setOriginalData({
-        username: formData.username,
-        email: formData.email,
-      });
-      
-      toast.success('Profile updated successfully!');
-      console.log('Profile updated:', result);
-      
-    } catch (error) {
-      console.error('Profile update error:', error);
-      
-      if (error?.data) {
-        if (error.data.username && Array.isArray(error.data.username)) {
-          toast.error(`Username: ${error.data.username[0]}`);
-        } else if (error.data.email && Array.isArray(error.data.email)) {
-          toast.error(`Email: ${error.data.email[0]}`);
-        } else if (error.data.error) {
-          toast.error(error.data.error);
-        } else if (error.data.detail) {
-          toast.error(error.data.detail);
-        } else {
-          const errorMessages = [];
-          Object.keys(error.data).forEach(field => {
-            if (Array.isArray(error.data[field])) {
-              errorMessages.push(`${field}: ${error.data[field][0]}`);
-            }
-          });
-          
-          if (errorMessages.length > 0) {
-            toast.error(errorMessages.join(', '));
-          } else {
-            toast.error('Error updating profile');
-          }
-        }
-      } else {
-        toast.error(error?.message || 'Network error occurred');
-      }
+  try {
+    const updateData = { id: user.id };
+
+    if (formData.username !== originalData.username) {
+      updateData.username = formData.username;
     }
-  };
+    if (formData.email !== originalData.email) {
+      updateData.email = formData.email;
+    }
+    if (formData.newPassword !== "") {
+      updateData.password = formData.newPassword;
+    }
+
+    const result = await updateProfile(updateData).unwrap();
+    console.log("Backend profile update response:", result);
+
+    // Extract backend update record
+    const updatedRecord = result?.results?.[0] ?? {};
+
+    const updatedUsername = updatedRecord.username ?? formData.username;
+    const updatedEmail = updatedRecord.email ?? formData.email;
+
+    const backendMessage =
+      updatedRecord.message ??
+      `Profile updated successfully!`;
+
+    // Update local state with backend values
+    setOriginalData({
+      username: updatedUsername,
+      email: updatedEmail,
+    });
+
+    // Reset password fields and visibility
+    setFormData({
+      ...formData,
+      newPassword: "",
+      confirmPassword: "",
+    });
+    setShowNewPassword(false);
+    setShowConfirmPassword(false);
+
+    toast.success(backendMessage);
+  } catch (error) {
+    console.error("Profile update error:", error);
+
+    if (error?.data) {
+      if (error.data.username && Array.isArray(error.data.username)) {
+        toast.error(`Username: ${error.data.username[0]}`);
+      } else if (error.data.email && Array.isArray(error.data.email)) {
+        toast.error(`Email: ${error.data.email[0]}`);
+      } else if (error.data.password && Array.isArray(error.data.password)) {
+        toast.error(`Password: ${error.data.password[0]}`);
+      } else if (error.data.error) {
+        toast.error(error.data.error);
+      } else if (error.data.detail) {
+        toast.error(error.data.detail);
+      } else {
+        const msgs = [];
+        Object.keys(error.data).forEach((field) => {
+          if (Array.isArray(error.data[field])) {
+            msgs.push(`${field}: ${error.data[field][0]}`);
+          }
+        });
+
+        toast.error(msgs.length ? msgs.join(", ") : "Error updating profile");
+      }
+    } else {
+      toast.error(error?.message || "Network error occurred");
+    }
+  }
+};
+
 
   const handleReset = () => {
-    setFormData(originalData);
+    if (!hasUpdatePermission) return;
+    
+    setFormData({
+      ...originalData,
+      newPassword: '',
+      confirmPassword: '',
+    });
+    setShowNewPassword(false);
+    setShowConfirmPassword(false);
   };
 
   const getRoleIcon = () => {
     switch (user?.role?.toLowerCase()) { 
       case 'admin':
+      case 'administrator':
         return <ShieldCheckIcon className="w-5 h-5 text-red-500" />;
       case 'manager':
         return <UserGroupIcon className="w-5 h-5 text-yellow-500" />;
@@ -126,12 +180,6 @@ const ProfileTab = ({ user, isDarkMode = false }) => {
   };
 
   const getInputStyling = (fieldName) => {
-    if (!isAdmin) {
-      return isDarkMode 
-        ? 'bg-gray-600 border-gray-500 text-gray-300 cursor-not-allowed' 
-        : 'bg-gray-100 border-gray-300 text-gray-500 cursor-not-allowed';
-    }
-    
     const isChanged = formData[fieldName] !== originalData[fieldName];
     
     if (isChanged) {
@@ -145,8 +193,22 @@ const ProfileTab = ({ user, isDarkMode = false }) => {
       : 'bg-white border-gray-300 text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
   };
 
+  const getPasswordInputStyling = () => {
+    return isDarkMode 
+      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500' 
+      : 'bg-white border-gray-300 text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
+  };
+
+  const passwordsMatch = formData.newPassword !== '' && 
+                         formData.confirmPassword !== '' && 
+                         formData.newPassword === formData.confirmPassword;
+
+  const passwordsDontMatch = formData.newPassword !== '' && 
+                              formData.confirmPassword !== '' && 
+                              formData.newPassword !== formData.confirmPassword;
+
   return (
-    <div className="w-full space-y-3 px-2 sm:px-0"> {/* ✅ Added responsive padding */}
+    <div className="w-full space-y-3 px-2 sm:px-0">
       <div className="mb-2">
         <h3 
           className="text-base sm:text-lg font-medium flex items-center" 
@@ -159,14 +221,14 @@ const ProfileTab = ({ user, isDarkMode = false }) => {
           className="text-xs sm:text-sm mt-1" 
           style={{ color: isDarkMode ? '#9CA3AF' : '#6B7280' }}
         >
-          {isAdmin 
+          {hasUpdatePermission 
             ? 'Update your account information and preferences.' 
-            : 'Your account details and information.'}
+            : 'View your account information.'}
         </p>
       </div>
 
       <div 
-        className="p-2 sm:p-3 rounded-lg border" // ✅ Responsive padding
+        className="p-2 sm:p-3 rounded-lg border"
         style={{
           backgroundColor: isDarkMode ? '#111827' : '#F9FAFB',
           borderColor: isDarkMode ? '#374151' : '#E5E7EB'
@@ -174,7 +236,7 @@ const ProfileTab = ({ user, isDarkMode = false }) => {
       >
         <form onSubmit={handleSubmit} className="space-y-3">
           {/* Username and Email Fields */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3"> {/* ✅ Responsive gap */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
             <div>
               <label 
                 htmlFor="username" 
@@ -182,7 +244,7 @@ const ProfileTab = ({ user, isDarkMode = false }) => {
                 style={{ color: isDarkMode ? '#D1D5DB' : '#374151' }}
               >
                 Username
-                {isAdmin && formData.username !== originalData.username && (
+                {hasUpdatePermission && formData.username !== originalData.username && (
                   <span className="text-blue-500 ml-1">*</span>
                 )}
               </label>
@@ -192,10 +254,9 @@ const ProfileTab = ({ user, isDarkMode = false }) => {
                 name="username"
                 value={formData.username}
                 onChange={handleChange}
-                readOnly={!isAdmin}
-                disabled={isUpdating}
-                className={`w-full px-2 sm:px-3 py-1.5 border rounded-lg text-sm sm:text-base transition-colors ${getInputStyling('username')} ${isUpdating ? 'opacity-50' : ''}`} // ✅ Responsive padding and text size
-                required={isAdmin}
+                disabled={!hasUpdatePermission || isUpdating}
+                className={`w-full px-2 sm:px-3 py-1.5 border rounded-lg text-sm sm:text-base transition-colors ${getInputStyling('username')} ${(!hasUpdatePermission || isUpdating) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                required
               />
             </div>
             
@@ -206,7 +267,7 @@ const ProfileTab = ({ user, isDarkMode = false }) => {
                 style={{ color: isDarkMode ? '#D1D5DB' : '#374151' }}
               >
                 Email Address
-                {isAdmin && formData.email !== originalData.email && (
+                {hasUpdatePermission && formData.email !== originalData.email && (
                   <span className="text-blue-500 ml-1">*</span>
                 )}
               </label>
@@ -216,16 +277,147 @@ const ProfileTab = ({ user, isDarkMode = false }) => {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                readOnly={!isAdmin}
-                disabled={isUpdating}
-                className={`w-full px-2 sm:px-3 py-1.5 border rounded-lg text-sm sm:text-base transition-colors ${getInputStyling('email')} ${isUpdating ? 'opacity-50' : ''}`} // ✅ Responsive padding and text size
-                required={isAdmin}
+                disabled={!hasUpdatePermission || isUpdating}
+                className={`w-full px-2 sm:px-3 py-1.5 border rounded-lg text-sm sm:text-base transition-colors ${getInputStyling('email')} ${(!hasUpdatePermission || isUpdating) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                required
               />
+            </div>
+          </div>
+
+          {/* Password Change Section */}
+          <div className="pt-3 border-t" style={{ borderColor: isDarkMode ? '#374151' : '#E5E7EB' }}>
+            <h4 
+              className="text-sm sm:text-base font-medium mb-2" 
+              style={{ color: isDarkMode ? '#D1D5DB' : '#374151' }}
+            >
+              Change Password
+            </h4>
+            <p 
+              className="text-xs mb-3" 
+              style={{ color: isDarkMode ? '#9CA3AF' : '#6B7280' }}
+            >
+              {hasUpdatePermission 
+                ? 'Leave blank to keep your current password' 
+                : 'Contact administrator to change your password'}
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+              {/* New Password */}
+              <div>
+                <label 
+                  htmlFor="newPassword" 
+                  className="block text-xs sm:text-sm font-medium mb-1" 
+                  style={{ color: isDarkMode ? '#D1D5DB' : '#374151' }}
+                >
+                  New Password
+                  {hasUpdatePermission && formData.newPassword !== '' && (
+                    <span className="text-blue-500 ml-1">*</span>
+                  )}
+                </label>
+                <div className="relative">
+                  <input
+                    type={showNewPassword ? "text" : "password"}
+                    id="newPassword"
+                    name="newPassword"
+                    value={formData.newPassword}
+                    onChange={handleChange}
+                    disabled={!hasUpdatePermission || isUpdating}
+                    className={`w-full px-2 sm:px-3 py-1.5 pr-10 border rounded-lg text-sm sm:text-base transition-colors ${getPasswordInputStyling()} ${(!hasUpdatePermission || isUpdating) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    placeholder="Enter new password"
+                    minLength={8}
+                  />
+                  {hasUpdatePermission && (
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                      tabIndex={-1}
+                      disabled={isUpdating}
+                    >
+                      {showNewPassword ? (
+                        <EyeSlashIcon
+                          className="w-5 h-5"
+                          style={{ color: isDarkMode ? "#9CA3AF" : "#6B7280" }}
+                        />
+                      ) : (
+                        <EyeIcon
+                          className="w-5 h-5"
+                          style={{ color: isDarkMode ? "#9CA3AF" : "#6B7280" }}
+                        />
+                      )}
+                    </button>
+                  )}
+                </div>
+                {hasUpdatePermission && formData.newPassword !== '' && formData.newPassword.length < 8 && (
+                  <p className="text-xs mt-1 text-red-500">
+                    Password must be at least 8 characters long
+                  </p>
+                )}
+              </div>
+
+              {/* Confirm Password */}
+              <div>
+                <label 
+                  htmlFor="confirmPassword" 
+                  className="block text-xs sm:text-sm font-medium mb-1" 
+                  style={{ color: isDarkMode ? '#D1D5DB' : '#374151' }}
+                >
+                  Confirm New Password
+                  {hasUpdatePermission && formData.confirmPassword !== '' && (
+                    <span className="text-blue-500 ml-1">*</span>
+                  )}
+                </label>
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    disabled={!hasUpdatePermission || isUpdating}
+                    className={`w-full px-2 sm:px-3 py-1.5 pr-10 border rounded-lg text-sm sm:text-base transition-colors ${getPasswordInputStyling()} ${(!hasUpdatePermission || isUpdating) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    placeholder="Confirm new password"
+                    minLength={8}
+                  />
+                  {hasUpdatePermission && (
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                      tabIndex={-1}
+                      disabled={isUpdating}
+                    >
+                      {showConfirmPassword ? (
+                        <EyeSlashIcon
+                          className="w-5 h-5"
+                          style={{ color: isDarkMode ? "#9CA3AF" : "#6B7280" }}
+                        />
+                      ) : (
+                        <EyeIcon
+                          className="w-5 h-5"
+                          style={{ color: isDarkMode ? "#9CA3AF" : "#6B7280" }}
+                        />
+                      )}
+                    </button>
+                  )}
+                </div>
+                {/* Password Match Indicator */}
+                {hasUpdatePermission && passwordsMatch && (
+                  <p className="text-xs mt-1" style={{ color: "#10B981" }}>
+                    ✓ Passwords match
+                  </p>
+                )}
+                {hasUpdatePermission && passwordsDontMatch && (
+                  <p className="text-xs mt-1 text-red-500">
+                    ✗ Passwords do not match
+                  </p>
+                )}
+              </div>
             </div>
           </div>
           
           {/* Role and Member Since Fields */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 pt-3 border-t" style={{ borderColor: isDarkMode ? '#374151' : '#E5E7EB' }}>
             <div>
               <label 
                 className="block text-xs sm:text-sm font-medium mb-1" 
@@ -239,7 +431,7 @@ const ProfileTab = ({ user, isDarkMode = false }) => {
                   isDarkMode 
                     ? 'bg-gray-600 border-gray-500 text-gray-300' 
                     : 'bg-gray-100 border-gray-300 text-gray-500'
-                }`} // ✅ Responsive padding and text size
+                }`}
                 value={user?.role?.charAt(0).toUpperCase() + user?.role?.slice(1)}
                 readOnly 
               />
@@ -264,7 +456,7 @@ const ProfileTab = ({ user, isDarkMode = false }) => {
                   isDarkMode 
                     ? 'bg-gray-600 border-gray-500 text-gray-300' 
                     : 'bg-gray-100 border-gray-300 text-gray-500'
-                }`} // ✅ Responsive padding and text size
+                }`}
                 value={new Date(user?.date_joined).toLocaleDateString('en-US', {
                   year: 'numeric',
                   month: 'long',
@@ -281,9 +473,9 @@ const ProfileTab = ({ user, isDarkMode = false }) => {
             </div>
           </div>
 
-          {/* Update/Cancel Buttons - Only show for Admin */}
-          {isAdmin && (
-            <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 pt-2 sm:pt-3 border-t" style={{ borderColor: isDarkMode ? '#374151' : '#E5E7EB' }}> {/* ✅ Responsive layout and gap */}
+          {/* Update/Cancel Buttons - Wrapped in RenderIfAllowed */}
+          <RenderIfAllowed module="users_management" action="update">
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 pt-2 sm:pt-3 border-t" style={{ borderColor: isDarkMode ? '#374151' : '#E5E7EB' }}>
               {/* Reset Button */}
               {hasChanges() && !isUpdating && (
                 <button 
@@ -293,7 +485,7 @@ const ProfileTab = ({ user, isDarkMode = false }) => {
                     isDarkMode 
                       ? 'text-gray-300 bg-gray-600 hover:bg-gray-500'
                       : 'text-gray-700 bg-gray-200 hover:bg-gray-300'
-                  }`} // ✅ Responsive button size and layout
+                  }`}
                 >
                   <ArrowPathIcon className="w-4 h-4 mr-2" />
                   Reset
@@ -310,10 +502,11 @@ const ProfileTab = ({ user, isDarkMode = false }) => {
                         ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 focus:ring-offset-gray-800'
                         : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700')
                     : 'bg-gray-400 text-gray-600 cursor-not-allowed'
-                }`} // ✅ Responsive button size and layout
+                }`}
                 title={
+                  !hasUpdatePermission ? 'You do not have permission to update profile' :
                   !hasChanges() ? 'Make changes to enable update' :
-                  !isFormValid() ? 'Please fill in all required fields' :
+                  !isFormValid() ? 'Please fill in all required fields correctly' :
                   isUpdating ? 'Updating...' : 'Update Profile'
                 }
               >
@@ -333,26 +526,7 @@ const ProfileTab = ({ user, isDarkMode = false }) => {
                 )}
               </button>
             </div>
-          )}
-
-          {/* Info message for non-admin users */}
-          {!isAdmin && (
-            <div 
-              className="mt-3 p-2 sm:p-2.5 rounded-lg border text-xs sm:text-sm"
-              style={{
-                backgroundColor: isDarkMode ? '#1F2937' : '#F3F4F6',
-                borderColor: isDarkMode ? '#4B5563' : '#D1D5DB'
-              }}
-            >
-              <p 
-                className="text-center"
-                style={{ color: isDarkMode ? '#9CA3AF' : '#6B7280' }}
-              >
-                <span className="inline-block w-2 h-2 bg-gray-400 rounded-full mr-2"></span>
-                Profile information is managed by your administrator
-              </p>
-            </div>
-          )}
+          </RenderIfAllowed>
         </form>
       </div>
     </div>

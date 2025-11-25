@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings as SettingsIcon, Users, Shield, ArrowRight, UserRoundPen, DoorClosedLocked, RefreshCw } from 'lucide-react';
+import { Settings as SettingsIcon, Users, ArrowRight, UserRoundPen, DoorClosedLocked, RefreshCw, ServerCog } from 'lucide-react';
+// import Globalgear from '../../assets/globe-gear.svg?react';
 import { useDocumentTitle } from "../../Hooks/useDocumentTitle";
 import { useGetUserPermissionsQuery } from '../../redux/permissionApiSlice';
 import { useAuth } from '../../Contexts/AuthContext';
@@ -24,7 +25,7 @@ const Settings = ({ isDarkMode }) => {
   const navigate = useNavigate();
   const { data: permissionsData } = useGetUserPermissionsQuery(user?.id);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  
+
   console.log("permission", permissionsData)
   const [errorModal, setErrorModal] = useState({
     show: false,
@@ -209,59 +210,77 @@ const Settings = ({ isDarkMode }) => {
 
         {/* Settings Options Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <SettingOptionCard 
+          <SettingOptionCard
+            option={{
+              id: 'user-profile',
+              title: 'User Profile',
+              description: 'Create and manage device groups for better organization',
+              icon: UserRoundPen,
+              // requiredPermission: 'access_custom_group_feature',
+              path: '/profile',
+              color: 'blue',
+              features: [
+                'User information',
+                'Edit user profile',
+              ]
+            }}
+            colors={getColorClasses('blue')}
+
+          />
+
+          <RenderIfAllowed module="rbac" action="read" >
+            <SettingOptionCard
               option={{
-                    id: 'user-profile',
-                    title: 'User Profile',
-                    description: 'Create and manage device groups for better organization',
-                    icon: UserRoundPen,
-                    // requiredPermission: 'access_custom_group_feature',
-                    path: '/profile',
-                    color: 'blue',
-                    features: [
-                      'Create custom device groups',
-                      'Assign devices to groups',
-                    ]}}
+                id: 'rbac',
+                title: 'Roles',
+                description: 'User management and system configuration settings',
+                icon: DoorClosedLocked,
+                path: '/role-management',
+                color: 'blue',
+                features: [
+                  'User account management',
+                  'Manage user permissions',
+                ]
+              }}
               colors={getColorClasses('blue')}
-                  
             />
+          </RenderIfAllowed>
 
-            <RenderIfAllowed module="rbac" action="read" >
-              <SettingOptionCard 
-                option={{
-                  id: 'rbac',
-                  title: 'Roles',
-                  description: 'User management and system configuration settings',
-                  icon: DoorClosedLocked,
-                  path: '/role-management',
-                  color: 'blue',
-                  features: [
-                    'User account management',
-                    'Manage user permissions',
-                  ]
-                }}
-                colors={getColorClasses('blue')}
-              />
-            </RenderIfAllowed>
+          <RenderIfAllowed module="users_management" action="read">
+            <SettingOptionCard
+              option={{
+                id: 'users_management',
+                title: 'Users',
+                description: 'User management and system configuration settings',
+                icon: Users,
+                path: '/userlist',
+                color: 'blue',
+                features: [
+                  'User creation',
+                  'User account management',
+                ]
+              }}
+              colors={getColorClasses('blue')}
+            />
+          </RenderIfAllowed>
 
-            <RenderIfAllowed module="users_management" action="read">
-              <SettingOptionCard
-                option={{
-                  id: 'users_management',
-                  title: 'Users',
-                  description: 'User management and system configuration settings',
-                  icon: Users,
-                  path: '/profile/userlist',
-                  color: 'blue',
-                  features: [
-                    'User creation',
-                    'User account management',
-                  ]
-                }}
-                colors={getColorClasses('blue')}
-              />
-            </RenderIfAllowed>
-            
+          <RenderIfAllowed module="global_configuration" action="read">
+            <SettingOptionCard
+              option={{
+                id: 'global_config',
+                title: 'Global Configuration',
+                description: 'Manage system-wide settings including SMTP and Alert configurations.',
+                icon: ServerCog,
+                path: '/global-configuration',
+                color: 'blue',
+                features: [
+                  'SMTP Configuration',
+                  'Alert Configuration'
+                ]
+              }}
+              colors={getColorClasses('blue')}
+            />
+          </RenderIfAllowed>
         </div>
       </div>
 

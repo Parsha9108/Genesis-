@@ -5,7 +5,7 @@ from BaseApp.services.agent_monitoring.main_endpoint import agent_monitor
 from BaseApp.services.agent_monitoring.disk_partition_patch import updation_unknown_disk_partition
 from BaseApp.services.agent_monitoring.networkport_patch import updation_unknown_networkport
 
-from BaseApp.services.webapp_services.user_register_login_services.webuser_registration import register_web_user
+
 from BaseApp.services.webapp_services.user_register_login_services.webuser_login import login_web_user
 from BaseApp.services.webapp_services.user_register_login_services.send_email_to_verify_webuser import sendemail_to_verify_user
 from BaseApp.services.webapp_services.user_register_login_services.send_email_to_reset_password import sendemail_to_reset_password
@@ -13,9 +13,7 @@ from BaseApp.services.webapp_services.user_register_login_services.webuser_passw
 from BaseApp.services.webapp_services.user_register_login_services.webuser_email_validation import check_email
 from BaseApp.services.webapp_services.user_register_login_services.webuser_username_validation import check_username
 from BaseApp.services.webapp_services.user_register_login_services.verify_reset_password_token import verify_reset_password_token
-from BaseApp.services.webapp_services.user_register_login_services.webuser_profile_update import update_web_user
-from BaseApp.services.webapp_services.user_register_login_services.get_all_webusers import get_all_users
-from BaseApp.services.webapp_services.user_register_login_services.delete_webuser import delete_web_user
+
 from BaseApp.services.webapp_services.user_register_login_services.webuser_logout import logout_view
 
 from BaseApp.services.webapp_services.user_permissions.get_assigned_permissions import get_user_permissions
@@ -145,20 +143,12 @@ def handle_unknown_disk_partition_view(request,device_uuid):
 def handle_unknown_networkport_view(request,device_uuid):
     return updation_unknown_networkport(request,device_uuid)
        
-@api_view(["POST"])
-@permission_classes([AllowAny])
-def webuser_registration_view(request):
-    return register_web_user(request)
    
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def web_user_login_view(request):
     return  login_web_user(request)
 
-@api_view(['PATCH'])
-@permission_classes([AllowAny])
-def update_user_details(request,id):
-    return update_web_user(request,id)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -191,17 +181,6 @@ def update_password_view(request):
 def verify_email_view(request,token):     
     return sendemail_to_verify_user(request, token)  # Assuming this function handles email verification as well
 
-@api_view(["GET"])
-@authentication_classes([JWTCookieAuthentication])
-@permission_classes([IsAuthenticated]) 
-def get_all_user_details(request):
-    return get_all_users(request)
-
-@api_view(["DELETE"])
-@authentication_classes([JWTCookieAuthentication])
-@permission_classes([IsAuthenticated])     
-def delete_user_details(request,id):
-    return delete_web_user(request,id)
 
 
 @api_view(['POST'])

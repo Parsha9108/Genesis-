@@ -8,6 +8,7 @@ def sendemail_to_verify_user(request,token):
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
         user = WebUser.objects.get(id=payload["user_id"])
+        user.is_email_verified =  True
         user.is_active = True
         user.save()
         return Response({"message": "Email verified. You can now log in."}, status=status.HTTP_200_OK)

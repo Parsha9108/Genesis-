@@ -5,6 +5,9 @@ from django.conf import settings
 from BaseApp.models import WebUser
 import jwt,datetime
 from urllib.parse import quote
+import logging
+logger = logging.getLogger("agent_monitoring")
+# token generation for password reset
 def generate_password_reset_token(user):
     payload = {
         "user_id": str(user.id),
@@ -15,25 +18,28 @@ def generate_password_reset_token(user):
     }
     token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
     return token
-
+# function to send reset password email with token
 def sendemail_to_reset_password(request):
-    email = request.data.get('email')
-    if not email:
-        return Response({'error': 'Email is required'}, status=status.HTTP_400_BAD_REQUEST)
-
-    # Check if email exists
-    if not WebUser.objects.filter(email=email).exists():
-        return Response({'error': 'No user found with this email.'}, status=status.HTTP_404_NOT_FOUND)
     try:
+        email = request.data.get('email')
+        if not email:
+            return Response({'error': 'Email is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if email exists
+        if not WebUser.objects.filter(email=email).exists():
+            return Response({'error': 'No user found with this email.'}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            user = WebUser.objects.get(email=email)
+        except WebUser.DoesNotExist:
+            return Response({"error": "User with this email does not exist."}, status=status.HTTP_404_NOT_FOUND)
+        logger.info(f"Generating reset token for email: {email}")
         user = WebUser.objects.get(email=email)
-    except WebUser.DoesNotExist:
-        return Response({"error": "User with this email does not exist."}, status=status.HTTP_404_NOT_FOUND)
+        token = generate_password_reset_token(user)
+        token_encoded = quote(token)
+        reset_link = f"https://192.168.100.92/app/reset-password/{user.id}?token={token_encoded}"
 
-    user = WebUser.objects.get(email=email)
-    token = generate_password_reset_token(user)
-    token_encoded = quote(token)
-    reset_link = f"https://192.168.100.91/app/reset-password/{user.id}?token={token_encoded}"
-
+    except Exception as e:
+        return Response({'error': 'An error occurred. Please try again later.'},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
     # Send HTML email

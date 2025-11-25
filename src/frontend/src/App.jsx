@@ -44,6 +44,9 @@ const CpuIO = lazy(() => import('./components/applicationResourcemonitoring/CpuI
 //settings page
 const SettingsPage = lazy(() => import('./components/layout/Settings'));
 
+//globalConfig page
+const GlobalConfiguration = lazy(()=>import('./components/administratorpanel/GlobalConfigWrapper'));
+
 const SignIn = lazy(() => import('./components/User/SignIn/SignIn'));
 const SignUp = lazy(() => import('./components/User/SignUp/SignUp'));
 const EmailVerification = lazy(() => import('./components/User/EmailVerification/EmailVerification'));
@@ -144,7 +147,7 @@ const AppContent = () => {
             <Route path="devices" element={<DevicesPage isDarkMode={isDarkMode} />} />
             <Route path="devices/:id" element={<DashBoard isDarkMode={isDarkMode} cpuMap={cpuMap} memoryMap={memoryMap} networkMap={networkMap} refreshInterval={refreshInterval} />} />
             <Route path="/profile" element={<AdminPanel isDarkMode={isDarkMode}/> } />
-            <Route path="/profile/userlist" element={<Userlist isDarkMode={isDarkMode} />} />
+            <Route path="/userlist" element={<Userlist isDarkMode={isDarkMode} />} />
 
             <Route path="/profile/permissions" element={<PermissionManagement isDarkMode={isDarkMode} />} />
             <Route path="/profile/permissions/setpermissions" element={<UserPermissionsPage isDarkMode={isDarkMode} />} />
@@ -160,6 +163,8 @@ const AppContent = () => {
             <Route path="/settings" element={<SettingsPage isDarkMode={isDarkMode} />} />
             <Route path="/role-management" element={<RoleManagement isDarkMode={isDarkMode} />} />
 
+            {/*globalcondig url*/}
+            <Route path="/global-configuration" element={<GlobalConfiguration isDarkMode={isDarkMode}/>}/>
             <Route path="devices/:id/disk_details" element={<DiskDetails isDarkMode={isDarkMode} />} />
             <Route path="devices/:id/disk_io" element={<DiskIo isDarkMode={isDarkMode} diskMap={diskMap} />} />
             <Route path="devices/:id/memory_details" element={<MemoryDetails isDarkMode={isDarkMode} />} />
@@ -189,7 +194,7 @@ const App = () => (
     <AppContent />
     <ToastContainer
       position="top-right"
-      autoClose={1000}
+      autoClose={4000}
       hideProgressBar={false}
       newestOnTop={false}
       closeOnClick

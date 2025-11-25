@@ -36,6 +36,7 @@
     "recharts": "^2.15.3",
     "redux-persist": "^6.0.0",
     "uuid": "^11.1.0",
+    "vite-plugin-svgr": "^4.5.0",
     "yup": "^1.6.1"
   },
   "devDependencies": {

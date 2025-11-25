@@ -1,7 +1,7 @@
 from django.contrib import admin
 from .models.models import *
 from .models.roles import *
-
+from .models.global_config import *
 admin.site.register(Agent)
 admin.site.register(Device)
 admin.site.register(CPU)
@@ -31,6 +31,7 @@ admin.site.register(ApplicationMemoryIO)
 admin.site.register(ApplicationDiskIO)
 admin.site.register(Role)
 admin.site.register(PermissionSet)
+admin.site.register(GlobalConfig)
 
 
 @admin.register(MonitoringCheckpoint)

@@ -693,13 +693,14 @@ class WebUser(models.Model):
     username = models.CharField(max_length=100, unique=True)
     password = models.CharField(max_length=128)
     email = models.EmailField(unique=True)
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=False)
     date_joined = models.DateTimeField(auto_now_add=True)
     last_logout_time = models.DateTimeField(null=True, blank=True)
     is_currently_logged_in = models.BooleanField(default=False)
     last_login = models.DateTimeField(null=True, blank=True)
-    is_first_login = models.BooleanField(default=True)
-    
+    is_first_login = models.BooleanField(default=False)
+    is_email_verified = models.BooleanField(default=False)
+    is_email_enabled = models.BooleanField(default=False)
     # ✅ Helper methods for role checking
     @property
     def is_admin(self):
@@ -713,10 +714,7 @@ class WebUser(models.Model):
     def is_standard_user(self):
         return self.role.lower() == 'user'
     
-    @property
-    def is_custom_role(self):
-        standard_roles = ['admin', 'manager', 'user']
-        return self.role.lower() not in standard_roles
+   
     @property
     def is_authenticated(self):
         return True

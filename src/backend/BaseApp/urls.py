@@ -2,7 +2,10 @@ from django.urls import path
 from .views import *
 from .services.webapp_services.user_management.user_details import *
 from .services.webapp_services.user_management.user_roles import RolesManageView
-
+from .services.webapp_services.user_management.UserManageView import UserManageView
+from .services.webapp_services.global_config.global_config_view import GlobalConfigView
+from .services.webapp_services.email_notifications.smtp_test_config import test_email_configuration
+# from .services.webapp_services.user_management.UserManageView import updatepassword
 urlpatterns =[
     path('onboard/',agent_onboard_view,name='agent_view'),
     path('get/jwt/',access_token_view,name="tokens"),
@@ -12,7 +15,6 @@ urlpatterns =[
     path('get/jwt/access_token/',refresh_access_token_view,name="get_access_token"),
     path('bridge/',agent_monitroing_view,name="agent_monitoring"),
 
-    path('signup/', webuser_registration_view , name='register'),
     path('signup/check-email/',email_validation, name='check-email'),
     path('signup/check-username/', username_validatuion_view, name='check-username'),
     path('register/reset-password/', sendemail_to_resetpassword_view, name='send-reset-password'),
@@ -20,9 +22,7 @@ urlpatterns =[
     path("password-reset/", update_password_view, name="password-reset"),
     path('register/verify-email/<str:token>/', verify_email_view, name='verify-email'),
     path('signin/', web_user_login_view, name='login'),
-    path('users/',get_all_user_details,name='users'),
-    path('users/update/<uuid:id>/',update_user_details, name='webuser-detail'),
-    path('users/delete/<uuid:id>/', delete_user_details, name='delete-user'),
+
     path('get/logged-in-user-details/', get_logged_in_user_details, name='get-logged-in-user-details'),
     path('logout/', logout, name='logout'), 
     
@@ -84,5 +84,15 @@ urlpatterns =[
     
     # Test URL
     path('request/user/', test_request_user),
+
     path('roles/', RolesManageView.as_view(), name='roles-manage'),
+
+    # UserManageView
+    path('user/manage/', UserManageView.as_view(), name='user-manage'),
+ 
+    # GlobalConfigView
+    path('globalconfig/',GlobalConfigView.as_view(),name='config'),
+
+    path('test-smtp-config/', test_email_configuration,name='test-smtp-config')
+
 ]

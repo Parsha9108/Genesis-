@@ -144,6 +144,10 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
     confirm_password: '',
     role: '',
   });
+
+  // EMAIL VERIFICATION CHECKBOX STATE
+  const [emailVerificationEnabled, setEmailVerificationEnabled] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
@@ -154,24 +158,22 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [confirmPasswordTouched, setConfirmPasswordTouched] = useState(false);
 
-  // ✅ Fetch roles from backend
+  // Fetch roles from backend
   const { data: rolesData = [], isLoading: rolesLoading, error: rolesError } = useGetRolesQuery();
 
   const [createUser, { isLoading }] = useCreateUserMutation();
-  
 
-  // ✅ Transform roles data to match dropdown format
+  // Transform roles data to match dropdown format
   const roleChoices = React.useMemo(() => {
     if (!Array.isArray(rolesData) || rolesData.length === 0) {
       return [];
     }
 
     return rolesData.map(role => ({
-      value: role.uuid, // Use UUID as value
-      label: role.role_name || role.name || 'Unknown Role' // Adjust field name based on backend response
+      value: role.uuid,
+      label: role.role_name || role.name || 'Unknown Role'
     }));
   }, [rolesData]);
-  console.log(roleChoices)
 
   const isFieldEnabled = (fieldName) => {
     switch (fieldName) {
@@ -353,42 +355,55 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validateForm()) return;
+  e.preventDefault();
+  if (!validateForm()) return;
 
-    const userData = { ...formData };
-    console.log("This is the formdata on clikcing the submit",userData)
-    setLoading(true);
-
-    try {
-      await createUser(formData).unwrap();
-      
-      setLoading(false);
-      handleReset();
-      onUserCreated();
-      onHide();
-
-      setTimeout(() => {
-        const selectedRoleLabel = roleChoices.find(r => r.value === userData.role_name)?.label;
-        toast.success(
-          `User "${userData.username}" created successfully with role "${selectedRoleLabel}"!`,
-          {
-            position: "top-right",
-            autoClose: 4000,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
-          }
-        );
-      }, 300);
-
-    } catch (error) {
-      console.error('User creation error:', error);
-      setLoading(false);
-      handleBackendError(error);
-    }
+  const userData = {
+    username: formData.username,
+    email: formData.email,
+    password: formData.password,
+    confirm_password: formData.confirm_password,
+    role: formData.role,
+    is_email_enabled: emailVerificationEnabled,
   };
+
+  console.log("Payload being sent:", userData);
+  setLoading(true);
+
+  try {
+    const res = await createUser(userData).unwrap();
+    console.log("This is response for the user creation", res);
+
+    // Extract backend data safely
+    const createdUsername = res?.user?.username ?? userData.username;
+    const createdEmail = res?.user?.email ?? userData.email;
+    const createdRole = res?.user?.role?.role_name ?? "Unknown Role";
+
+    setLoading(false);
+    handleReset();
+    onUserCreated();
+    onHide();
+
+    setTimeout(() => {
+      toast.success(
+        `User "${createdUsername}" created successfully with role "${createdRole}"!`,
+        {
+          position: "top-right",
+          autoClose: 4000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        }
+      );
+    }, 300);
+
+  } catch (error) {
+    console.error('User creation error:', error);
+    setLoading(false);
+    handleBackendError(error);
+  }
+};
 
   const handleReset = () => {
     setFormData({
@@ -398,6 +413,7 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
       confirm_password: '',
       role: '',
     });
+    setEmailVerificationEnabled(false);
     setErrors({});
     setPasswordValidation([]);
     setPasswordTouched(false);
@@ -497,7 +513,7 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
   if (!show) return null;
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-[9999] flex items-center justify-center backdrop-blur-sm"
       style={{ backgroundColor: 'rgba(0, 0, 0, 0.1)' }}
       onClick={handleClose}
@@ -697,7 +713,7 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
             </div>
           </div>
 
-          {/* Role Selection - Fetches from Backend */}
+          {/* Role Selection */}
           <div>
             <label
               htmlFor="role"
@@ -725,6 +741,38 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
             {errors.role && (
               <p className="mt-0.5 text-xs text-red-600">{errors.role}</p>
             )}
+          </div>
+
+          {/*EMAIL VERIFICATION CHECKBOX */}
+          <div className={`p-3 rounded-lg border ${isDarkMode
+              ? 'bg-gray-700/50 border-gray-600'
+              : 'bg-gray-50 border-gray-200'
+            }`}>
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="email_verification"
+                checked={emailVerificationEnabled}
+                onChange={(e) => setEmailVerificationEnabled(e.target.checked)}
+                className={`w-4 h-4 rounded border transition-colors cursor-pointer ${isDarkMode
+                    ? 'border-gray-500 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-700'
+                    : 'border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-offset-white'
+                  }`}
+              />
+              <label
+                htmlFor="email_verification"
+                className="ml-2 text-sm font-medium cursor-pointer"
+                style={{ color: isDarkMode ? '#D1D5DB' : '#374151' }}
+              >
+                Send email verification link to user
+              </label>
+            </div>
+            <p
+              className="mt-1 ml-6 text-xs"
+              style={{ color: isDarkMode ? '#9CA3AF' : '#6B7280' }}
+            >
+              If enabled, the user will receive an email to verify their account
+            </p>
           </div>
 
           <div className="flex justify-end space-x-3 pt-3 border-t" style={{ borderColor: isDarkMode ? '#374151' : '#E5E7EB' }}>
