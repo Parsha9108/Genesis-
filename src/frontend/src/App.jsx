@@ -8,8 +8,6 @@ import { WebSocketContext } from './Contexts/WebSocketContext';
 import usePersistedTheme from './Hooks/usePersistedTheme';
 import { Settings } from 'lucide-react';
 
-
-
 // Lazy imports
 const Dashboard = lazy(() => import('./components/pages/Dashboard'));
 const DevicesPage = lazy(() => import('./components/pages/DevicesPage'));
@@ -43,6 +41,9 @@ const CpuIO = lazy(() => import('./components/applicationResourcemonitoring/CpuI
 
 //settings page
 const SettingsPage = lazy(() => import('./components/layout/Settings'));
+
+//Audit Logs
+const AuditLogs = lazy(() => import('./components/administratorpanel/AuditLogs'));
 
 //globalConfig page
 const GlobalConfiguration = lazy(()=>import('./components/administratorpanel/GlobalConfigWrapper'));
@@ -162,6 +163,7 @@ const AppContent = () => {
             {/*Settings url*/}
             <Route path="/settings" element={<SettingsPage isDarkMode={isDarkMode} />} />
             <Route path="/role-management" element={<RoleManagement isDarkMode={isDarkMode} />} />
+            <Route path="/audit-logs" element={<AuditLogs isDarkMode={isDarkMode} />} />
 
             {/*globalcondig url*/}
             <Route path="/global-configuration" element={<GlobalConfiguration isDarkMode={isDarkMode}/>}/>

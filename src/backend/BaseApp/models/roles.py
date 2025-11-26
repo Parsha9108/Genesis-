@@ -1,8 +1,10 @@
 from django.db import models
 from BaseApp.models import *
 import uuid
+from .base_audit_model import BaseAuditModel
 
-class Role(models.Model):
+
+class Role(BaseAuditModel):
     uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     role_name = models.CharField(max_length=255)
 

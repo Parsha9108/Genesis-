@@ -8,6 +8,7 @@ from simple_history.models import HistoricalRecords
 from oauth2_provider.models import Application, get_access_token_model
 from simple_history.utils import update_change_reason
 from .roles import *
+from .base_audit_model import BaseAuditModel
 
 
 
@@ -686,7 +687,7 @@ class MonitoringSession(models.Model):
         return self.ended_at is None
     
 
-class WebUser(models.Model):
+class WebUser(BaseAuditModel):
     # choices constraint - allow any role value
     role = models.ForeignKey(Role, on_delete=models.PROTECT, null=True)
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -698,23 +699,8 @@ class WebUser(models.Model):
     last_logout_time = models.DateTimeField(null=True, blank=True)
     is_currently_logged_in = models.BooleanField(default=False)
     last_login = models.DateTimeField(null=True, blank=True)
-    is_first_login = models.BooleanField(default=False)
-    is_email_verified = models.BooleanField(default=False)
-    is_email_enabled = models.BooleanField(default=False)
-    # ✅ Helper methods for role checking
-    @property
-    def is_admin(self):
-        return self.role.lower() == 'admin'
+    is_first_login = models.BooleanField(default=True)
     
-    @property
-    def is_manager(self):
-        return self.role.lower() == 'manager'
-    
-    @property
-    def is_standard_user(self):
-        return self.role.lower() == 'user'
-    
-   
     @property
     def is_authenticated(self):
         return True

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings as SettingsIcon, Users, ArrowRight, UserRoundPen, DoorClosedLocked, RefreshCw, ServerCog } from 'lucide-react';
+import { Settings as SettingsIcon, Users, ArrowRight, UserRoundPen, DoorClosedLocked, RefreshCw, ServerCog, FileText} from 'lucide-react';
+
 // import Globalgear from '../../assets/globe-gear.svg?react';
 import { useDocumentTitle } from "../../Hooks/useDocumentTitle";
 import { useGetUserPermissionsQuery } from '../../redux/permissionApiSlice';
@@ -246,6 +247,60 @@ const Settings = ({ isDarkMode }) => {
             />
           </RenderIfAllowed>
 
+            <RenderIfAllowed module="users_management" action="read">
+              <SettingOptionCard
+                option={{
+                  id: 'users_management',
+                  title: 'Users',
+                  description: 'User management and system configuration settings',
+                  icon: Users,
+                  path: '/profile/userlist',
+                  color: 'blue',
+                  features: [
+                    'User creation',
+                    'User account management',
+                  ]
+                }}
+                colors={getColorClasses('blue')}
+              />
+            </RenderIfAllowed>
+
+            <RenderIfAllowed module="global_configuration" action="read">
+              <SettingOptionCard
+                option={{
+                  id: 'global_config',
+                  title: 'Global Configuration',
+                  description: 'Manage system-wide settings including SMTP and Alert configurations.',
+                  icon: ServerCog,
+                  path: '/global-configuration',
+                  color: 'blue',
+                  features: [
+                    'SMTP Configuration',
+                    'Alert Configuration'
+                  ]
+                }}
+                colors={getColorClasses('blue')}
+              />
+          </RenderIfAllowed>
+
+            {/* <RenderIfAllowed module="audit_logs" action="read"> */}
+              <SettingOptionCard
+                option={{
+                  id: "Audit_Logs",
+                  title: "Audit Logs",
+                  description: "View detailed records of system actions, user activity, and configuration changes.",
+                  icon: FileText,
+                  path: "/audit-logs",
+                  color: "blue",
+                  features: [
+                    "User Activity Logs",
+                    "Configuration Change History",
+                    "System Events Tracking"
+                  ]
+                }}
+                colors={getColorClasses("blue")}
+              />
+            {/* </RenderIfAllowed> */}
           <RenderIfAllowed module="users_management" action="read">
             <SettingOptionCard
               option={{

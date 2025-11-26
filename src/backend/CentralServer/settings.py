@@ -357,6 +357,7 @@ OAUTH2_PROVIDER_APPLICATION_MODEL= 'oauth2_provider.Application'
 ROOT_URLCONF = 'CentralServer.urls'
 
 TEMPLATES = [
+    
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [],
