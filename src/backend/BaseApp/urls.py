@@ -93,6 +93,20 @@ urlpatterns =[
     # GlobalConfigView
     path('globalconfig/',GlobalConfigView.as_view(),name='config'),
 
-    path('test-smtp-config/', test_email_configuration,name='test-smtp-config')
+    path('test-smtp-config/', test_email_configuration,name='test-smtp-config'),
+
+    # MonChartsReqHandler View
+    
 
 ]
+
+webappurlpatterns =[
+
+    # path('monitoring/charts/', mon_charts_request_handler_view, name='mon-charts-request-handler'),
+    # path('component-uuid-pair/<uuid:agent_uuid>/<str:component_type>/', get_component_objects_details_view, name='component-uuid-pair'),
+]
+
+# agenturlpatterns =[
+#     # AgentView
+#     path('v1/https/agent/', AgentView.as_view(), name='agent-view'),
+# ]

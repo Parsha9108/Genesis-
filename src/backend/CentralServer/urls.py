@@ -17,11 +17,15 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path,include
 from oauth2_provider import urls as oauth2_urls
+from BaseApp.urls import webappurlpatterns
+# from BaseApp.urls import agenturlpatterns
     
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('o/', include(oauth2_urls)),
     path('api/agent/',include('BaseApp.urls')),
     path('api/webuser/', include('BaseApp.urls')),
+    # path('api/', include(agenturlpatterns)),
+    path('api/webapp/v1/', include(webappurlpatterns)),
 ]
 
