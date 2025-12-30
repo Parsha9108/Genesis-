@@ -104,3 +104,19 @@ urlpatterns =[
     path('audit_logs/download/', download_audit_logs, name='audit-logs-download'),
 
 ]
+
+   
+    
+
+
+
+webappurlpatterns =[
+
+    # path('monitoring/charts/', mon_charts_request_handler_view, name='mon-charts-request-handler'),
+    # path('component-uuid-pair/<uuid:agent_uuid>/<str:component_type>/', get_component_objects_details_view, name='component-uuid-pair'),
+]
+
+# agenturlpatterns =[
+#     # AgentView
+#     path('v1/https/agent/', AgentView.as_view(), name='agent-view'),
+# ]
