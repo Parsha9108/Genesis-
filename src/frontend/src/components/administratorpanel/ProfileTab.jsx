@@ -6,6 +6,7 @@ import { useUpdateUserMutation } from '../../redux/userApiSlice';
 import RenderIfAllowed from '../Utilities/RenderIfAllowed';
 import { useSelector } from 'react-redux';
 
+
 const ProfileTab = ({ user, isDarkMode = false }) => {
   
   const [formData, setFormData] = useState({
@@ -19,6 +20,8 @@ const ProfileTab = ({ user, isDarkMode = false }) => {
     username: user?.username || '',
     email: user?.email || '',
   });
+
+  const [errors, setErrors] = useState({});
 
   // Password visibility states
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -41,6 +44,7 @@ const ProfileTab = ({ user, isDarkMode = false }) => {
       newPassword: '',
       confirmPassword: '',
     });
+    setErrors({});
   }, [user]);
 
   const hasChanges = () => {
@@ -54,10 +58,9 @@ const ProfileTab = ({ user, isDarkMode = false }) => {
                        formData.email.trim() !== '' &&
                        /\S+@\S+\.\S+/.test(formData.email);
     
-    // If attempting to change password, validate password fields
+    // If attempting to change password, only check if passwords match
     if (formData.newPassword !== '') {
       return basicValid && 
-             formData.newPassword.length >= 8 &&
              formData.newPassword === formData.confirmPassword;
     }
     
@@ -69,91 +72,168 @@ const ProfileTab = ({ user, isDarkMode = false }) => {
   };
 
   const handleChange = (e) => {
-    if (!hasUpdatePermission) return; // Prevent changes if no permission
+    if (!hasUpdatePermission) return;
+    
+    const { name, value } = e.target;
     
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: value,
+    });
+
+    // Clear errors when user types
+    setErrors(prev => {
+      const newErrors = { ...prev };
+      
+      // For password fields, clear both frontend and backend error keys
+      if (name === 'newPassword') {
+        delete newErrors.newPassword; 
+        delete newErrors.password;  
+      } else if (name === 'confirmPassword') {
+        delete newErrors.confirmPassword;
+      } else {
+        // For other fields (username, email), clear normally
+        delete newErrors[name];
+      }
+      
+      return newErrors;
     });
   };
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  if (!hasUpdatePermission || !hasChanges() || !isFormValid()) return;
+    if (!hasUpdatePermission || !hasChanges() || !isFormValid()) return;
 
-  try {
-    const updateData = { id: user.id };
+    try {
+      const updateData = { id: user.id };
 
-    if (formData.username !== originalData.username) {
-      updateData.username = formData.username;
-    }
-    if (formData.email !== originalData.email) {
-      updateData.email = formData.email;
-    }
-    if (formData.newPassword !== "") {
-      updateData.password = formData.newPassword;
-    }
+      if (formData.username !== originalData.username) {
+        updateData.username = formData.username;
+      }
+      if (formData.email !== originalData.email) {
+        updateData.email = formData.email;
+      }
+      if (formData.newPassword !== "") {
+        updateData.password = formData.newPassword;
+      }
 
-    const result = await updateProfile(updateData).unwrap();
-    console.log("Backend profile update response:", result);
+      const result = await updateProfile(updateData).unwrap();
+      console.log("Backend profile update response:", result);
 
-    // Extract backend update record
-    const updatedRecord = result?.results?.[0] ?? {};
+      // Check if update was successful
+      if (result.success === false && result.failed_updates?.length > 0) {
+        // Extract errors from failed_updates
+        const failedUpdate = result.failed_updates[0];
+        
+        if (failedUpdate.errors) {
+          let fieldErrors = {};
+          
+          Object.keys(failedUpdate.errors).forEach(field => {
+            if (Array.isArray(failedUpdate.errors[field])) {
+              // Store error with joined messages
+              const errorMessage = failedUpdate.errors[field].join(' ');
+              fieldErrors[field] = errorMessage;
+            }
+          });
 
-    const updatedUsername = updatedRecord.username ?? formData.username;
-    const updatedEmail = updatedRecord.email ?? formData.email;
+          if (Object.keys(fieldErrors).length > 0) {
+            console.log("Setting validation errors:", fieldErrors);
+            setErrors(fieldErrors);
+            return; // Stop here, don't show success
+          }
+        }
+      }
 
-    const backendMessage =
-      updatedRecord.message ??
-      `Profile updated successfully!`;
+      // Success path - extract from successful_updates
+      const successfulUpdate = result.successful_updates?.[0];
+      
+      if (successfulUpdate) {
+        const updatedUsername = successfulUpdate.username ?? formData.username;
+        const updatedEmail = successfulUpdate.email ?? formData.email;
 
-    // Update local state with backend values
-    setOriginalData({
-      username: updatedUsername,
-      email: updatedEmail,
-    });
+        setOriginalData({
+          username: updatedUsername,
+          email: updatedEmail,
+        });
 
-    // Reset password fields and visibility
-    setFormData({
-      ...formData,
-      newPassword: "",
-      confirmPassword: "",
-    });
-    setShowNewPassword(false);
-    setShowConfirmPassword(false);
+        setFormData({
+          username: updatedUsername,
+          email: updatedEmail,
+          newPassword: "",
+          confirmPassword: "",
+        });
+        setShowNewPassword(false);
+        setShowConfirmPassword(false);
+        setErrors({});
 
-    toast.success(backendMessage);
-  } catch (error) {
-    console.error("Profile update error:", error);
+        toast.success("Profile updated successfully!");
+      }
+      
+    } catch (error) {
+      console.error("Profile update error:", error);
+      
+      // Handle RTK Query errors
+      const errorData = error?.data;
+      
+      if (!errorData) {
+        console.error("No error data found");
+        return;
+      }
 
-    if (error?.data) {
-      if (error.data.username && Array.isArray(error.data.username)) {
-        toast.error(`Username: ${error.data.username[0]}`);
-      } else if (error.data.email && Array.isArray(error.data.email)) {
-        toast.error(`Email: ${error.data.email[0]}`);
-      } else if (error.data.password && Array.isArray(error.data.password)) {
-        toast.error(`Password: ${error.data.password[0]}`);
-      } else if (error.data.error) {
-        toast.error(error.data.error);
-      } else if (error.data.detail) {
-        toast.error(error.data.detail);
-      } else {
-        const msgs = [];
-        Object.keys(error.data).forEach((field) => {
-          if (Array.isArray(error.data[field])) {
-            msgs.push(`${field}: ${error.data[field][0]}`);
+      let fieldErrors = {};
+
+      // Handle your backend bulk update format
+      if (errorData.failed_updates && Array.isArray(errorData.failed_updates)) {
+        const failedUpdate = errorData.failed_updates[0];
+        
+        if (failedUpdate?.errors) {
+          Object.keys(failedUpdate.errors).forEach(field => {
+            if (Array.isArray(failedUpdate.errors[field])) {
+              const errorMessage = failedUpdate.errors[field].join(' ');
+              fieldErrors[field] = errorMessage;
+            }
+          });
+
+          if (Object.keys(fieldErrors).length > 0) {
+            console.log("Setting field errors from catch:", fieldErrors);
+            setErrors(fieldErrors);
+            return;
+          }
+        }
+      }
+
+      // Fallback: Standard VALIDATION_ERROR format
+      if (errorData.code === "VALIDATION_ERROR" && errorData.errors) {
+        Object.keys(errorData.errors).forEach(field => {
+          if (Array.isArray(errorData.errors[field])) {
+            fieldErrors[field] = errorData.errors[field].join(' ');
           }
         });
 
-        toast.error(msgs.length ? msgs.join(", ") : "Error updating profile");
+        if (Object.keys(fieldErrors).length > 0) {
+          setErrors(prev => ({ ...prev, ...fieldErrors }));
+          return;
+        }
       }
-    } else {
-      toast.error(error?.message || "Network error occurred");
-    }
-  }
-};
 
+      // Fallback: Plain object errors
+      if (typeof errorData === 'object') {
+        Object.keys(errorData).forEach(field => {
+          if (Array.isArray(errorData[field])) {
+            fieldErrors[field] = errorData[field].join(' ');
+          } else if (typeof errorData[field] === 'string') {
+            fieldErrors[field] = errorData[field];
+          }
+        });
+
+        if (Object.keys(fieldErrors).length > 0) {
+          console.log("Setting field errors (fallback):", fieldErrors);
+          setErrors(fieldErrors);
+        }
+      }
+    }
+  };
 
   const handleReset = () => {
     if (!hasUpdatePermission) return;
@@ -165,6 +245,7 @@ const ProfileTab = ({ user, isDarkMode = false }) => {
     });
     setShowNewPassword(false);
     setShowConfirmPassword(false);
+    setErrors({});
   };
 
   const getRoleIcon = () => {
@@ -182,6 +263,12 @@ const ProfileTab = ({ user, isDarkMode = false }) => {
   const getInputStyling = (fieldName) => {
     const isChanged = formData[fieldName] !== originalData[fieldName];
     
+    if (errors[fieldName]) {
+      return isDarkMode 
+        ? 'bg-gray-700 border-red-500 text-white placeholder-gray-400 focus:ring-2 focus:ring-red-500 focus:border-red-500' 
+        : 'bg-white border-red-500 text-gray-900 focus:ring-2 focus:ring-red-500 focus:border-red-500';
+    }
+    
     if (isChanged) {
       return isDarkMode 
         ? 'bg-gray-700 border-blue-500 text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ring-1 ring-blue-500' 
@@ -193,7 +280,13 @@ const ProfileTab = ({ user, isDarkMode = false }) => {
       : 'bg-white border-gray-300 text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
   };
 
-  const getPasswordInputStyling = () => {
+  const getPasswordInputStyling = (fieldName) => {
+    if (errors[fieldName]) {
+      return isDarkMode 
+        ? 'bg-gray-700 border-red-500 text-white placeholder-gray-400 focus:ring-2 focus:ring-red-500 focus:border-red-500' 
+        : 'bg-white border-red-500 text-gray-900 focus:ring-2 focus:ring-red-500 focus:border-red-500';
+    }
+    
     return isDarkMode 
       ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500' 
       : 'bg-white border-gray-300 text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
@@ -258,6 +351,9 @@ const ProfileTab = ({ user, isDarkMode = false }) => {
                 className={`w-full px-2 sm:px-3 py-1.5 border rounded-lg text-sm sm:text-base transition-colors ${getInputStyling('username')} ${(!hasUpdatePermission || isUpdating) ? 'opacity-60 cursor-not-allowed' : ''}`}
                 required
               />
+              {errors.username && (
+                <p className="text-xs mt-1 text-red-500">{errors.username}</p>
+              )}
             </div>
             
             <div>
@@ -281,6 +377,9 @@ const ProfileTab = ({ user, isDarkMode = false }) => {
                 className={`w-full px-2 sm:px-3 py-1.5 border rounded-lg text-sm sm:text-base transition-colors ${getInputStyling('email')} ${(!hasUpdatePermission || isUpdating) ? 'opacity-60 cursor-not-allowed' : ''}`}
                 required
               />
+              {errors.email && (
+                <p className="text-xs mt-1 text-red-500">{errors.email}</p>
+              )}
             </div>
           </div>
 
@@ -322,15 +421,14 @@ const ProfileTab = ({ user, isDarkMode = false }) => {
                     value={formData.newPassword}
                     onChange={handleChange}
                     disabled={!hasUpdatePermission || isUpdating}
-                    className={`w-full px-2 sm:px-3 py-1.5 pr-10 border rounded-lg text-sm sm:text-base transition-colors ${getPasswordInputStyling()} ${(!hasUpdatePermission || isUpdating) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    className={`w-full px-2 sm:px-3 py-1.5 pr-10 border rounded-lg text-sm sm:text-base transition-colors ${getPasswordInputStyling('password')} ${(!hasUpdatePermission || isUpdating) ? 'opacity-60 cursor-not-allowed' : ''}`}
                     placeholder="Enter new password"
-                    minLength={8}
                   />
                   {hasUpdatePermission && (
                     <button
                       type="button"
                       onClick={() => setShowNewPassword(!showNewPassword)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded transition-colors"
                       tabIndex={-1}
                       disabled={isUpdating}
                     >
@@ -348,10 +446,8 @@ const ProfileTab = ({ user, isDarkMode = false }) => {
                     </button>
                   )}
                 </div>
-                {hasUpdatePermission && formData.newPassword !== '' && formData.newPassword.length < 8 && (
-                  <p className="text-xs mt-1 text-red-500">
-                    Password must be at least 8 characters long
-                  </p>
+                {errors.password && (
+                  <p className="text-xs mt-1 text-red-500">{errors.password}</p>
                 )}
               </div>
 
@@ -375,15 +471,14 @@ const ProfileTab = ({ user, isDarkMode = false }) => {
                     value={formData.confirmPassword}
                     onChange={handleChange}
                     disabled={!hasUpdatePermission || isUpdating}
-                    className={`w-full px-2 sm:px-3 py-1.5 pr-10 border rounded-lg text-sm sm:text-base transition-colors ${getPasswordInputStyling()} ${(!hasUpdatePermission || isUpdating) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    className={`w-full px-2 sm:px-3 py-1.5 pr-10 border rounded-lg text-sm sm:text-base transition-colors ${getPasswordInputStyling('confirmPassword')} ${(!hasUpdatePermission || isUpdating) ? 'opacity-60 cursor-not-allowed' : ''}`}
                     placeholder="Confirm new password"
-                    minLength={8}
                   />
                   {hasUpdatePermission && (
                     <button
                       type="button"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded transition-colors"
                       tabIndex={-1}
                       disabled={isUpdating}
                     >
@@ -411,6 +506,9 @@ const ProfileTab = ({ user, isDarkMode = false }) => {
                   <p className="text-xs mt-1 text-red-500">
                     ✗ Passwords do not match
                   </p>
+                )}
+                {errors.confirmPassword && (
+                  <p className="text-xs mt-1 text-red-500">{errors.confirmPassword}</p>
                 )}
               </div>
             </div>
@@ -514,7 +612,7 @@ const ProfileTab = ({ user, isDarkMode = false }) => {
                   <>
                     <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 914 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
                     Updating...
                   </>

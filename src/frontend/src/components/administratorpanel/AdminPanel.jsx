@@ -11,7 +11,7 @@ const AdminPanel = ({ isDarkMode = true }) => {
 
   return (
     <>
-      {/* ✅ Main Content Container */}
+      {/* Main Content Container */}
       <div
         className="w-full mx-auto"
         style={{
@@ -19,7 +19,7 @@ const AdminPanel = ({ isDarkMode = true }) => {
           marginTop: '-8px'
         }}
       >
-        {/* ✅ Content Container */}
+        {/* Content Container */}
         <div
           className="rounded-lg shadow-md relative"
           style={{
@@ -27,7 +27,7 @@ const AdminPanel = ({ isDarkMode = true }) => {
             border: isDarkMode ? '1px solid #374151' : '1px solid #E5E7EB'
           }}
         >
-          {/* ✅ Title Section */}
+          {/* Title Section */}
           <div
             className="p-4 sm:p-6 flex justify-between items-center border-b"
             style={{ borderColor: isDarkMode ? '#374151' : '#E5E7EB' }}
@@ -43,7 +43,7 @@ const AdminPanel = ({ isDarkMode = true }) => {
             </div>
           </div>
 
-          {/* ✅ Profile Content */}
+          {/* Profile Content */}
           <div className="p-6">
             <ProfileTab user={user} isDarkMode={isDarkMode} />
           </div>
@@ -54,4 +54,6 @@ const AdminPanel = ({ isDarkMode = true }) => {
 };
 
 export default AdminPanel;
+
+
 

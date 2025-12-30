@@ -1,4 +1,4 @@
-from django.core.mail import EmailMultiAlternatives
+
 from rest_framework import status
 from rest_framework.response import Response
 from django.conf import settings
@@ -8,7 +8,11 @@ from urllib.parse import quote
 import logging
 from BaseApp.services.webapp_services.email_notifications.Emailtemplates import EmailTemplates
 from ..email_notifications.Sendemail_service import EmailService
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+
 logger = logging.getLogger("agent_monitoring")
+
 # token generation for password reset
 def generate_password_reset_token(user):
     payload = {
@@ -22,6 +26,8 @@ def generate_password_reset_token(user):
     return token
 # function to send reset password email with token
 
+@api_view(['POST'])
+@permission_classes([AllowAny])
 def sendemail_to_reset_password(request):
     try:
         email = request.data.get('email')
@@ -40,7 +46,7 @@ def sendemail_to_reset_password(request):
             user = WebUser.objects.get(email=email)
             token = generate_password_reset_token(user)
             token_encoded = quote(token)
-            reset_link = f"https://192.168.100.92/app/reset-password/{user.id}?token={token_encoded}"
+            reset_link = f"https://10.99.1.93/app/reset-password/{user.id}?token={token_encoded}"
         except Exception as e:
             return Response({'error': 'Failed to generate reset token. Please try again later.'},status=status.HTTP_500_INTERNAL_SERVER_ERROR) 
       
@@ -60,5 +66,50 @@ def sendemail_to_reset_password(request):
     except Exception as e:
         return Response({'error': 'An error occurred. Please try again later.'},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def verify_reset_password_token(request):
+    """
+    Verify the reset password token before allowing password reset.
+    Returns validation status without modifying user state.
+    """
+    try:
+        # Decode the token
+        token = request.query_params.get('token')
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
+        
+        # Check token purpose (optional but recommended for security)
+        if payload.get('purpose') != 'password_reset':
+            return Response(
+                {"valid": False, "error": "Invalid token purpose"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Verify user exists
+        user_id = payload.get('user_id')
+        user = WebUser.objects.get(id=user_id)
+        
+        # Token is valid
+        return Response(
+            {"valid": True, "message": "Token verified successfully"}, 
+            status=status.HTTP_200_OK
+        )
+        
+    except jwt.ExpiredSignatureError:
+        return Response(
+            {"valid": False, "error": "Reset password link expired"}, 
+            status=status.HTTP_401_UNAUTHORIZED
+        )
+    except jwt.InvalidTokenError:
+        return Response(
+            {"valid": False, "error": "Invalid token"}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    except WebUser.DoesNotExist:
+        return Response(
+            {"valid": False, "error": "User not found"}, 
+            status=status.HTTP_404_NOT_FOUND
+        )
 
    

@@ -54,7 +54,6 @@ def get_user_permission_set(request):
         data[module.module] = {}
         for perm in ["create", "read", "update", "delete"]:
             data[module.module][perm] = module.__dict__.get(perm)
-
     return JsonResponse(data, status=200)
 
 @api_view(['GET'])

@@ -5,6 +5,7 @@ from .base_audit_model import BaseAuditModel
 
 
 class Role(BaseAuditModel):
+    AUDIT_IGNORE_FIELDS =[]
     uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     role_name = models.CharField(max_length=255)
 

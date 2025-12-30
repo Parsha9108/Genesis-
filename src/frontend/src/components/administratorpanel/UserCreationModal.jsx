@@ -109,32 +109,6 @@ const CreateRoleDropdown = ({ roleChoices, selectedRole, setSelectedRole, isDark
   );
 };
 
-// Password validation function
-const validatePassword = (password) => {
-  const errors = [];
-
-  if (password.length < 8) {
-    errors.push('At least 8 characters');
-  }
-
-  if (!/[A-Z]/.test(password)) {
-    errors.push('One uppercase letter');
-  }
-
-  if (!/[a-z]/.test(password)) {
-    errors.push('One lowercase letter');
-  }
-
-  if (!/[0-9]/.test(password)) {
-    errors.push('One number');
-  }
-
-  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
-    errors.push('One special character');
-  }
-
-  return errors;
-};
 
 const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = false }) => {
   const [formData, setFormData] = useState({
@@ -146,7 +120,7 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
   });
 
   // EMAIL VERIFICATION CHECKBOX STATE
-  const [emailVerificationEnabled, setEmailVerificationEnabled] = useState(false);
+  const [emailOverrideEnabled, setEmailOverrideEnabled] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
@@ -154,8 +128,6 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const [passwordValidation, setPasswordValidation] = useState([]);
-  const [passwordTouched, setPasswordTouched] = useState(false);
   const [confirmPasswordTouched, setConfirmPasswordTouched] = useState(false);
 
   // Fetch roles from backend
@@ -188,15 +160,13 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
       case 'confirm_password':
         return formData.username.trim() !== '' &&
           formData.email.trim() !== '' &&
-          formData.password !== '' &&
-          validatePassword(formData.password).length === 0;
+          formData.password !== '';
       case 'role':
         return formData.username.trim() !== '' &&
           formData.email.trim() !== '' &&
           formData.password !== '' &&
           formData.confirm_password !== '' &&
-          formData.password === formData.confirm_password &&
-          validatePassword(formData.password).length === 0;
+          formData.password === formData.confirm_password;
       default:
         return true;
     }
@@ -215,24 +185,8 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
       [name]: value,
     });
 
-    if (name === 'password') {
-      const validationErrors = validatePassword(value);
-      setPasswordValidation(validationErrors);
-
-      if (!passwordTouched) {
-        setPasswordTouched(true);
-      }
-
-      if (formData.confirm_password) {
-        setFormData(prev => ({ ...prev, confirm_password: '' }));
-        setConfirmPasswordTouched(false);
-      }
-    }
-
-    if (name === 'confirm_password') {
-      if (!confirmPasswordTouched) {
-        setConfirmPasswordTouched(true);
-      }
+    if (name === 'confirm_password' && !confirmPasswordTouched) {
+      setConfirmPasswordTouched(true);
     }
 
     if (errors[name]) {
@@ -272,14 +226,11 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
 
     if (!formData.password) {
       newErrors.password = 'Password is required';
-    } else {
-      const passwordErrors = validatePassword(formData.password);
-      if (passwordErrors.length > 0) {
-        newErrors.password = 'Password must contain: ' + passwordErrors.join(', ');
-      }
     }
 
-    if (formData.password !== formData.confirm_password) {
+    if (!formData.confirm_password) {
+      newErrors.confirm_password = 'Passwords do not match';
+    } else if (formData.password !== formData.confirm_password) {
       newErrors.confirm_password = 'Passwords do not match';
     }
 
@@ -291,119 +242,93 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleBackendError = (error) => {
-    let errorMessage = 'Unknown error occurred';
-    let fieldErrors = {};
+ const handleBackendError = (error) => {
+  let fieldErrors = {};
 
-    if (error?.data) {
-      const errorData = error.data;
+  if (error?.data) {
+    const errorData = error.data;
 
-      if (errorData.code === "VALIDATION_ERROR" && errorData.errors) {
-        Object.keys(errorData.errors).forEach(field => {
-          if (Array.isArray(errorData.errors[field])) {
-            fieldErrors[field] = errorData.errors[field][0];
-          }
-        });
-
-        if (Object.keys(fieldErrors).length > 0) {
-          setErrors(prev => ({ ...prev, ...fieldErrors }));
-
-          const errorMessages = Object.keys(fieldErrors).map(field =>
-            `${field.charAt(0).toUpperCase() + field.slice(1)}: ${fieldErrors[field]}`
-          );
-          toast.error(errorMessages.join('\n'), {
-            autoClose: 5000,
-            hideProgressBar: false
-          });
-          return;
+    if (errorData.code === "VALIDATION_ERROR" && errorData.errors) {
+      Object.keys(errorData.errors).forEach(field => {
+        if (Array.isArray(errorData.errors[field])) {
+          fieldErrors[field] = errorData.errors[field].join(' ');
         }
-      }
+      });
 
-      if (errorData.message) {
-        errorMessage = errorData.message;
-      } else if (errorData.error) {
-        errorMessage = errorData.error;
-      } else if (errorData.detail) {
-        errorMessage = errorData.detail;
-      } else if (errorData.non_field_errors) {
-        errorMessage = Array.isArray(errorData.non_field_errors)
-          ? errorData.non_field_errors.join(', ')
-          : errorData.non_field_errors;
-      } else if (typeof errorData === 'string') {
-        errorMessage = errorData;
-      } else {
-        Object.keys(errorData).forEach(field => {
-          if (Array.isArray(errorData[field])) {
-            fieldErrors[field] = errorData[field][0];
-          } else if (typeof errorData[field] === 'string') {
-            fieldErrors[field] = errorData[field];
-          }
-        });
-
-        if (Object.keys(fieldErrors).length > 0) {
-          setErrors(prev => ({ ...prev, ...fieldErrors }));
-          const errorMessages = Object.values(fieldErrors);
-          toast.error(errorMessages.join(', '));
-          return;
-        }
+      if (Object.keys(fieldErrors).length > 0) {
+        setErrors(prev => ({ ...prev, ...fieldErrors }));
+        return;
       }
-    } else if (error?.message) {
-      errorMessage = error.message;
     }
 
-    toast.error(errorMessage);
-  };
-
-  const handleSubmit = async (e) => {
-  e.preventDefault();
-  if (!validateForm()) return;
-
-  const userData = {
-    username: formData.username,
-    email: formData.email,
-    password: formData.password,
-    confirm_password: formData.confirm_password,
-    role: formData.role,
-    is_email_enabled: emailVerificationEnabled,
-  };
-
-  console.log("Payload being sent:", userData);
-  setLoading(true);
-
-  try {
-    const res = await createUser(userData).unwrap();
-    console.log("This is response for the user creation", res);
-
-    // Extract backend data safely
-    const createdUsername = res?.user?.username ?? userData.username;
-    const createdEmail = res?.user?.email ?? userData.email;
-    const createdRole = res?.user?.role?.role_name ?? "Unknown Role";
-
-    setLoading(false);
-    handleReset();
-    onUserCreated();
-    onHide();
-
-    setTimeout(() => {
-      toast.success(
-        `User "${createdUsername}" created successfully with role "${createdRole}"!`,
-        {
-          position: "top-right",
-          autoClose: 4000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
+    // Handle other error formats
+    if (typeof errorData === 'object' && !errorData.code) {
+      Object.keys(errorData).forEach(field => {
+        if (Array.isArray(errorData[field])) {
+          fieldErrors[field] = errorData[field].join(' ');
+        } else if (typeof errorData[field] === 'string') {
+          fieldErrors[field] = errorData[field];
         }
-      );
-    }, 300);
+      });
 
-  } catch (error) {
-    console.error('User creation error:', error);
-    setLoading(false);
-    handleBackendError(error);
+      if (Object.keys(fieldErrors).length > 0) {
+        setErrors(prev => ({ ...prev, ...fieldErrors }));
+        return;
+      }
+    }
   }
 };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+
+    const userData = {
+      username: formData.username,
+      email: formData.email,
+      password: formData.password,
+      confirm_password: formData.confirm_password,
+      role: formData.role,
+      is_email_override: emailOverrideEnabled,
+    };
+
+    console.log("Payload being sent:", userData);
+    setLoading(true);
+
+    try {
+      const res = await createUser(userData).unwrap();
+      console.log("This is response for the user creation", res);
+
+      // Extract backend data safely
+      const createdUsername = res?.user?.username ?? userData.username;
+      const createdEmail = res?.user?.email ?? userData.email;
+      const createdRole = res?.user?.role?.role_name ?? "Unknown Role";
+
+      setLoading(false);
+      handleReset();
+      onUserCreated();
+      onHide();
+
+      setTimeout(() => {
+        toast.success(
+          `User "${createdUsername}" created successfully with role "${createdRole}"!`,
+          {
+            position: "top-right",
+            autoClose: 4000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+          }
+        );
+      }, 300);
+
+    } catch (error) {
+      console.error('User creation error:', error);
+      setLoading(false);
+      handleBackendError(error);
+    }
+  };
 
   const handleReset = () => {
     setFormData({
@@ -413,10 +338,8 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
       confirm_password: '',
       role: '',
     });
-    setEmailVerificationEnabled(false);
+    setEmailOverrideEnabled(false);
     setErrors({});
-    setPasswordValidation([]);
-    setPasswordTouched(false);
     setConfirmPasswordTouched(false);
     setShowPassword(false);
     setShowConfirmPassword(false);
@@ -457,16 +380,10 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
         : 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed';
     }
 
-    if (errors.password || (passwordTouched && passwordValidation.length > 0)) {
+    if (errors.password) {
       return isDarkMode
         ? 'border-red-500 bg-gray-600 text-gray-300 placeholder-gray-400 focus:border-red-500 focus:ring-red-500'
         : 'border-red-500 bg-gray-100 text-gray-700 placeholder-gray-500 focus:border-red-500 focus:ring-red-500';
-    }
-
-    if (passwordTouched && passwordValidation.length === 0 && formData.password) {
-      return isDarkMode
-        ? 'border-green-500 bg-gray-700 text-white focus:border-green-500 focus:ring-green-500'
-        : 'border-green-500 bg-white text-gray-900 focus:border-green-500 focus:ring-green-500';
     }
 
     return isDarkMode
@@ -612,7 +529,6 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
-                  onBlur={() => setPasswordTouched(true)}
                   placeholder="Enter password"
                   disabled={!isFieldEnabled('password')}
                   className={`w-full px-3 py-1.5 pr-10 border rounded-lg focus:ring-2 transition-colors ${getPasswordInputStyling()}`}
@@ -636,18 +552,6 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
                   )}
                 </button>
               </div>
-
-              {passwordTouched && passwordValidation.length > 0 && isFieldEnabled('password') && (
-                <p className="mt-0.5 text-xs text-red-600">
-                  Missing: {passwordValidation.join(', ')}
-                </p>
-              )}
-
-              {passwordTouched && passwordValidation.length === 0 && formData.password && (
-                <p className="mt-0.5 text-xs text-green-600">
-                  ✓ Password meets all requirements
-                </p>
-              )}
 
               {errors.password && (
                 <p className="mt-0.5 text-xs text-red-600">{errors.password}</p>
@@ -717,7 +621,7 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
           <div>
             <label
               htmlFor="role"
-              className="block text-sm font-medium mb-1"
+              className="block text_sm font-medium mb-1"
               style={{ color: isDarkMode ? '#D1D5DB' : '#374151' }}
             >
               User Role
@@ -745,33 +649,33 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
 
           {/*EMAIL VERIFICATION CHECKBOX */}
           <div className={`p-3 rounded-lg border ${isDarkMode
-              ? 'bg-gray-700/50 border-gray-600'
-              : 'bg-gray-50 border-gray-200'
+            ? 'bg-gray-700/50 border-gray-600'
+            : 'bg-gray-50 border-gray-200'
             }`}>
             <div className="flex items-center">
               <input
                 type="checkbox"
-                id="email_verification"
-                checked={emailVerificationEnabled}
-                onChange={(e) => setEmailVerificationEnabled(e.target.checked)}
+                id="email_override"
+                checked={emailOverrideEnabled}
+                onChange={(e) => setEmailOverrideEnabled(e.target.checked)}
                 className={`w-4 h-4 rounded border transition-colors cursor-pointer ${isDarkMode
-                    ? 'border-gray-500 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-700'
-                    : 'border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-offset-white'
+                  ? 'border-gray-500 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-700'
+                  : 'border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-offset-white'
                   }`}
               />
               <label
-                htmlFor="email_verification"
+                htmlFor="email_override"
                 className="ml-2 text-sm font-medium cursor-pointer"
                 style={{ color: isDarkMode ? '#D1D5DB' : '#374151' }}
               >
-                Send email verification link to user
+                Override email verification
               </label>
             </div>
             <p
               className="mt-1 ml-6 text-xs"
               style={{ color: isDarkMode ? '#9CA3AF' : '#6B7280' }}
             >
-              If enabled, the user will receive an email to verify their account
+              If enabled, the user can access their account without needing to verify their email address.
             </p>
           </div>
 

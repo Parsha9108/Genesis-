@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
   UsersIcon,
   PencilIcon,
@@ -10,6 +10,8 @@ import {
   CheckBadgeIcon,
   EyeIcon,
   EyeSlashIcon,
+  UserGroupIcon,
+  EnvelopeIcon,
 } from "@heroicons/react/24/outline";
 import { ChevronDown, KeyRound } from "lucide-react";
 import "../index.css";
@@ -24,7 +26,7 @@ import { RoleDropdown } from "../permissions/RoleDropdown";
 import UserCreationModal from "./UserCreationModal";
 import RenderIfAllowed from "../Utilities/RenderIfAllowed";
 import { useAuth } from "../../Contexts/AuthContext";
-import BulkActionModal, { BULK_ACTION_TYPES } from "./BulkActionModal";
+import BulkActionModal from "./BulkActionModal";
 
 //  EditRoleDropdown: Used in Edit Modal - Shows ALL roles from API
 const EditRoleDropdown = ({
@@ -151,11 +153,17 @@ const UserListTab = ({ isDarkMode = false }) => {
   });
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordErrors, setPasswordErrors] = useState({});
+  const [confirmPasswordTouched, setConfirmPasswordTouched] = useState(false);
 
   // Multiple user selection
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [isActionsDropdownOpen, setIsActionsDropdownOpen] = useState(false);
   const actionsDropdownRef = useRef(null);
+
+  //Track which fields were modified
+  const [modifiedFields, setModifiedFields] = useState(new Set());
+  const [originalUserData, setOriginalUserData] = useState({});
 
   // BULK MODAL STATE VARIABLES
   const [showBulkActionModal, setShowBulkActionModal] = useState(false);
@@ -167,147 +175,11 @@ const UserListTab = ({ isDarkMode = false }) => {
   const [updateUser] = useUpdateUserMutation();
   const [deleteUser] = useDeleteUserMutation();
 
-  // Password Reset Button Click
-  const handlePasswordReset = (userToReset) => {
-    setSelectedUser(userToReset);
-    setPasswordResetData({
-      email: userToReset?.email || "",
-      newPassword: "",
-      confirmPassword: "",
-    });
-    setShowPasswordResetModal(true);
-  };
-
-  //  Password Reset Submit
-  const handlePasswordResetSubmit = async (e) => {
-    e.preventDefault();
-
-    if (passwordResetData.newPassword !== passwordResetData.confirmPassword) {
-      toast.error("Passwords do not match!");
-      return;
-    }
-
-    if (passwordResetData.newPassword.length < 8) {
-      toast.error("Password must be at least 8 characters long!");
-      return;
-    }
-
-    const loadingToast = toast.loading("Resetting password...");
-
-    try {
-      // Call backend
-      const response = await updateUser({
-        id: selectedUser?.id,
-        password: passwordResetData.newPassword,
-      }).unwrap();
-
-      console.log("Backend response:", response);
-
-      // Extract the updated user info
-      const updatedUser = response?.results?.[0];
-
-      // Build toast message using backend data
-      const message =
-        response?.success && updatedUser
-          ? `Password reset successfully for "${updatedUser.email}"!`
-          : `Password reset successful`;
-
-      toast.update(loadingToast, {
-        render: message,
-        type: "success",
-        isLoading: false,
-        autoClose: 2000,
-      });
-
-      setShowPasswordResetModal(false);
-      setSelectedUser(null);
-      setPasswordResetData({
-        email: "",
-        newPassword: "",
-        confirmPassword: "",
-      });
-
-    } catch (error) {
-      console.error("Password reset error:", error);
-
-      let errorMessage = "Unknown error occurred";
-      if (error?.data?.message) {
-        errorMessage = error.data.message;
-      } else if (error?.data?.error) {
-        errorMessage = error.data.error;
-      } else if (error?.message) {
-        errorMessage = error.message;
-      }
-
-      toast.update(loadingToast, {
-        render: `Failed to reset password: ${errorMessage}`,
-        type: "error",
-        isLoading: false,
-        autoClose: 5000,
-      });
-    }
-  };
-
-
-  // Handle checkbox selection
-  const handleUserSelect = (userId) => {
-    setSelectedUsers(prev => {
-      if (prev.includes(userId)) {
-        return prev.filter(id => id !== userId);
-      } else {
-        return [...prev, userId];
-      }
-    });
-  };
-
-  // Handle select all
-  const handleSelectAll = (e) => {
-    if (e.target.checked) {
-      // Filter out the current user from selection
-      const selectableUsers = filteredUsers.filter(rowUser => rowUser.id !== user?.id);
-      setSelectedUsers(selectableUsers.map(rowUser => rowUser.id));
-    } else {
-      setSelectedUsers([]);
-    }
-  };
-
-  // BULK ACTION HANDLERS  
-  const handleBulkEditRoles = () => {
-    setIsActionsDropdownOpen(false);
-    setCurrentBulkAction(BULK_ACTION_TYPES.EDIT_ROLES);
-    setShowBulkActionModal(true);
-  };
-
-  const handleBulkEnableEmail = () => {
-    setIsActionsDropdownOpen(false);
-    setCurrentBulkAction(BULK_ACTION_TYPES.ENABLE_EMAIL);
-    setShowBulkActionModal(true);
-  };
-
-  const handleBulkDeleteUsers = () => {
-    setIsActionsDropdownOpen(false);
-    setCurrentBulkAction(BULK_ACTION_TYPES.DELETE_USERS);
-    setShowBulkActionModal(true);
-  };
-
-  const handleBulkToggleStatus = () => {
-    setIsActionsDropdownOpen(false);
-    setCurrentBulkAction(BULK_ACTION_TYPES.TOGGLE_STATUS);
-    setShowBulkActionModal(true);
-  };
-
-  const handleBulkActionSuccess = () => {
-    setSelectedUsers([]);
-    setShowBulkActionModal(false);
-    setCurrentBulkAction(null);
-    refetch();
-  };
-
   //  Fetch ALL roles from API (for edit modal dropdown)
   const { data: rolesData = [], isLoading: rolesLoading, error: rolesError } = useGetRolesQuery();
 
   //  editRoleOptions: For Edit Modal - Contains ALL roles from database with UUIDs
-  const editRoleOptions = React.useMemo(() => {
+  const editRoleOptions = useMemo(() => {
     if (!Array.isArray(rolesData) || rolesData.length === 0) {
       return [];
     }
@@ -318,7 +190,7 @@ const UserListTab = ({ isDarkMode = false }) => {
     }));
   }, [rolesData]);
 
-  const filteredUsers = React.useMemo(() => {
+  const filteredUsers = useMemo(() => {
     if (!Array.isArray(data)) {
       return [];
     }
@@ -346,6 +218,536 @@ const UserListTab = ({ isDarkMode = false }) => {
 
     return result;
   }, [data, searchTerm, selectedRole]);
+
+  // DYNAMIC BULK ACTION CONFIGS
+  const bulkDeleteConfig = useMemo(() => ({
+    title: 'Delete Users',
+    message: `Are you sure you want to delete ${selectedUsers.length} user(s)? This action cannot be undone.`,
+    icon: TrashIcon,
+    iconColor: isDarkMode ? '#F87171' : '#EF4444',
+    iconBgColor: isDarkMode ? '#7F1D1D' : '#FEE2E2',
+    itemLabel: 'Selected Users',
+    itemUnit: 'user(s)',
+    dropdownLabel: 'Confirm Deletion',
+    dropdownPlaceholder: 'Select an option',
+    showDropdown: true,
+    requireSelection: true,
+    cancelValue: 'false',
+    options: [
+      { value: 'true', label: 'Yes' },
+      { value: 'false', label: 'No' },
+    ],
+    buttonText: 'Delete Users',
+    buttonColor: 'red',
+    processingText: 'Deleting...',
+    onAction: async (userIds, selectedValue) => {
+      if (selectedValue !== 'true') return;
+
+      const loadingToast = toast.loading(`Deleting ${userIds.length} user(s)...`);
+
+      try {
+        const promises = userIds.map(id => deleteUser(id).unwrap());
+        const results = await Promise.allSettled(promises);
+
+        const successCount = results.filter(r => r.status === 'fulfilled').length;
+        const failCount = results.filter(r => r.status === 'rejected').length;
+
+        if (successCount && !failCount) {
+          toast.update(loadingToast, {
+            render: `Successfully deleted ${successCount} user(s)`,
+            type: 'success',
+            isLoading: false,
+            autoClose: 3000,
+          });
+        } else if (successCount && failCount) {
+          toast.update(loadingToast, {
+            render: `Deleted ${successCount} user(s), ${failCount} failed`,
+            type: 'warning',
+            isLoading: false,
+            autoClose: 5000,
+          });
+        } else {
+          toast.update(loadingToast, {
+            render: `Failed to delete ${failCount} user(s)`,
+            type: 'error',
+            isLoading: false,
+            autoClose: 5000,
+          });
+        }
+      } catch (error) {
+        toast.update(loadingToast, {
+          render: 'An error occurred during bulk deletion',
+          type: 'error',
+          isLoading: false,
+          autoClose: 5000,
+        });
+      }
+    },
+  }), [selectedUsers.length, isDarkMode, deleteUser]);
+
+  const bulkEditRolesConfig = useMemo(() => ({
+    title: 'Edit User Roles',
+    message: `Select a role to assign to ${selectedUsers.length} user(s).`,
+    icon: UserGroupIcon,
+    iconColor: isDarkMode ? '#60A5FA' : '#3B82F6',
+    iconBgColor: isDarkMode ? '#1E3A8A' : '#DBEAFE',
+    itemLabel: 'Selected Users',
+    itemUnit: 'user(s)',
+    dropdownLabel: 'Select Role',
+    dropdownPlaceholder: 'Choose a role',
+    showDropdown: true,
+    requireSelection: true,
+    cancelValue: null,
+    options: editRoleOptions,
+    buttonText: 'Update Roles',
+    buttonColor: 'blue',
+    processingText: 'Updating...',
+    onAction: async (userIds, roleUuid) => {
+      if (!roleUuid) return;
+
+      const loadingToast = toast.loading(`Updating roles for ${userIds.length} user(s)...`);
+
+      try {
+        const promises = userIds.map(id =>
+          updateUser({ id, role: roleUuid }).unwrap()
+        );
+        const results = await Promise.allSettled(promises);
+
+        const successCount = results.filter(r => r.status === 'fulfilled').length;
+        const failCount = results.filter(r => r.status === 'rejected').length;
+
+        if (successCount && !failCount) {
+          toast.update(loadingToast, {
+            render: `Successfully updated ${successCount} user(s)`,
+            type: 'success',
+            isLoading: false,
+            autoClose: 3000,
+          });
+        } else if (successCount && failCount) {
+          toast.update(loadingToast, {
+            render: `Updated ${successCount} user(s), ${failCount} failed`,
+            type: 'warning',
+            isLoading: false,
+            autoClose: 5000,
+          });
+        } else {
+          toast.update(loadingToast, {
+            render: `Failed to update ${failCount} user(s)`,
+            type: 'error',
+            isLoading: false,
+            autoClose: 5000,
+          });
+        }
+      } catch (error) {
+        toast.update(loadingToast, {
+          render: 'An error occurred during role update',
+          type: 'error',
+          isLoading: false,
+          autoClose: 5000,
+        });
+      }
+    },
+  }), [selectedUsers.length, isDarkMode, editRoleOptions, updateUser]);
+
+  const bulkOverrideEmailConfig = useMemo(() => ({
+    title: 'Email Verification Control',
+    message: `Control email verification for ${selectedUsers.length} user(s)?`,
+    icon: EnvelopeIcon,
+    iconColor: isDarkMode ? '#34D399' : '#10B981',
+    iconBgColor: isDarkMode ? '#064E3B' : '#D1FAE5',
+    itemLabel: 'Selected Users',
+    itemUnit: 'user(s)',
+    dropdownLabel: 'Email Verification',
+    dropdownPlaceholder: 'Select an option',
+    showDropdown: true,
+    requireSelection: true,
+    cancelValue: null,
+    options: [
+      { value: 'enable', label: 'Enable Email Verification' },
+      { value: 'disable', label: 'Disable Email Verification' }
+    ],
+    buttonText: 'Update Verification',
+    buttonColor: 'green',
+    processingText: 'Updating...',
+    onAction: async (userIds, selectedValue) => {
+      if (!selectedValue) return;
+
+      const isEmailOverride = selectedValue === 'disable';
+
+      const actionText = selectedValue === 'enable' ? 'Enabling' : 'Disabling';
+      const loadingToast = toast.loading(`${actionText} email verification...`);
+
+      try {
+        const promises = userIds.map(id =>
+          updateUser({
+            id,
+            is_email_override: isEmailOverride
+          }).unwrap()
+        );
+        const results = await Promise.allSettled(promises);
+
+        const successCount = results.filter(r => r.status === 'fulfilled').length;
+        const failCount = results.filter(r => r.status === 'rejected').length;
+
+        if (successCount && !failCount) {
+          toast.update(loadingToast, {
+            render: `Email verification ${selectedValue === 'enable' ? 'enabled' : 'disabled'} for ${successCount} user(s)`,
+            type: 'success',
+            isLoading: false,
+            autoClose: 3000,
+          });
+        } else if (successCount && failCount) {
+          toast.update(loadingToast, {
+            render: `Updated ${successCount} user(s), ${failCount} failed`,
+            type: 'warning',
+            isLoading: false,
+            autoClose: 5000,
+          });
+        } else {
+          toast.update(loadingToast, {
+            render: `Failed to update ${failCount} user(s)`,
+            type: 'error',
+            isLoading: false,
+            autoClose: 5000,
+          });
+        }
+      } catch (error) {
+        toast.update(loadingToast, {
+          render: 'An error occurred',
+          type: 'error',
+          isLoading: false,
+          autoClose: 5000,
+        });
+      }
+    },
+  }), [selectedUsers.length, isDarkMode, updateUser]);
+
+  const bulkToggleStatusConfig = useMemo(() => ({
+    title: 'Toggle User Status',
+    message: `Enable or disable ${selectedUsers.length} user(s)?`,
+    icon: UserGroupIcon,
+    iconColor: isDarkMode ? '#FBBF24' : '#F59E0B',
+    iconBgColor: isDarkMode ? '#78350F' : '#FEF3C7',
+    itemLabel: 'Selected Users',
+    itemUnit: 'user(s)',
+    dropdownLabel: 'User Status',
+    dropdownPlaceholder: 'Select status',
+    showDropdown: true,
+    requireSelection: true,
+    cancelValue: null,
+    options: [
+      { value: 'enable', label: 'Enable users' },
+      { value: 'disable', label: 'Disable users' },
+    ],
+    buttonText: 'Update Status',
+    buttonColor: 'yellow',
+    processingText: 'Updating...',
+    onAction: async (userIds, selectedValue) => {
+      if (!selectedValue) return;
+
+      const isActive = selectedValue === 'enable';
+      const loadingToast = toast.loading(`${isActive ? 'Enabling' : 'Disabling'} users...`);
+
+      try {
+        const promises = userIds.map(id =>
+          updateUser({ id, is_user_enabled: isActive }).unwrap()
+        );
+        const results = await Promise.allSettled(promises);
+
+        const successCount = results.filter(r => r.status === 'fulfilled').length;
+        const failCount = results.filter(r => r.status === 'rejected').length;
+
+        if (successCount && !failCount) {
+          toast.update(loadingToast, {
+            render: `Successfully ${isActive ? 'enabled' : 'disabled'} ${successCount} user(s)`,
+            type: 'success',
+            isLoading: false,
+            autoClose: 3000,
+          });
+        } else if (successCount && failCount) {
+          toast.update(loadingToast, {
+            render: `Updated ${successCount} user(s), ${failCount} failed`,
+            type: 'warning',
+            isLoading: false,
+            autoClose: 5000,
+          });
+        } else {
+          toast.update(loadingToast, {
+            render: `Failed to update ${failCount} user(s)`,
+            type: 'error',
+            isLoading: false,
+            autoClose: 5000,
+          });
+        }
+      } catch (error) {
+        toast.update(loadingToast, {
+          render: 'An error occurred',
+          type: 'error',
+          isLoading: false,
+          autoClose: 5000,
+        });
+      }
+    },
+  }), [selectedUsers.length, isDarkMode, updateUser]);
+
+  // Determine which config to use
+  const getCurrentConfig = () => {
+    switch (currentBulkAction) {
+      case 'DELETE_USERS':
+        return bulkDeleteConfig;
+      case 'EDIT_ROLES':
+        return bulkEditRolesConfig;
+      case 'ENABLE_EMAIL':
+        return bulkOverrideEmailConfig;
+      case 'TOGGLE_STATUS':
+        return bulkToggleStatusConfig;
+      default:
+        return null;
+    }
+  };
+
+  // Password Reset Button Click
+  const handlePasswordReset = (userToReset) => {
+    setSelectedUser(userToReset);
+    setPasswordResetData({
+      email: userToReset?.email || "",
+      newPassword: "",
+      confirmPassword: "",
+    });
+    setPasswordErrors({});
+    setConfirmPasswordTouched(false);
+    setShowNewPassword(false);
+    setShowConfirmPassword(false);
+    setShowPasswordResetModal(true);
+  };
+
+  // Helper function to clear errors on typing
+  const handlePasswordResetChange = (field, value) => {
+    setPasswordResetData({
+      ...passwordResetData,
+      [field]: value,
+    });
+
+    // Clear errors when user types
+    if (passwordErrors[field]) {
+      setPasswordErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        // Also clear 'password' key if typing in newPassword
+        if (field === 'newPassword') {
+          delete newErrors.password;
+        }
+        return newErrors;
+      });
+    }
+  };
+
+  // Helper for input styling
+  const getPasswordResetInputStyling = (fieldName) => {
+    if (passwordErrors[fieldName] || passwordErrors.password) {
+      return isDarkMode
+        ? 'bg-gray-700 border-red-500 text-white focus:ring-red-500 focus:border-red-500'
+        : 'bg-white border-red-500 text-gray-900 focus:ring-red-500 focus:border-red-500';
+    }
+
+    return isDarkMode
+      ? 'bg-gray-700 border-gray-600 text-white focus:ring-blue-500 focus:border-blue-500'
+      : 'bg-white border-gray-300 text-gray-900 focus:ring-blue-500 focus:border-blue-500';
+  };
+
+  //  Password Reset Submit
+  const handlePasswordResetSubmit = async (e) => {
+    e.preventDefault();
+
+    // Only check if passwords match (let backend handle strength validation)
+    if (passwordResetData.newPassword !== passwordResetData.confirmPassword) {
+      setPasswordErrors({ confirmPassword: "Passwords do not match!" });
+      return;
+    }
+
+    const loadingToast = toast.loading("Resetting password...");
+
+    try {
+      const response = await updateUser({
+        id: selectedUser?.id,
+        password: passwordResetData.newPassword,
+      }).unwrap();
+
+      console.log("Backend response:", response);
+
+      // Check for validation errors in success response
+      if (response.success === false && response.failed_updates?.length > 0) {
+        const failedUpdate = response.failed_updates[0];
+
+        if (failedUpdate.errors) {
+          let fieldErrors = {};
+
+          Object.keys(failedUpdate.errors).forEach(field => {
+            if (Array.isArray(failedUpdate.errors[field])) {
+              const errorMessage = failedUpdate.errors[field].join(' ');
+              fieldErrors[field] = errorMessage;
+            }
+          });
+
+          if (Object.keys(fieldErrors).length > 0) {
+            setPasswordErrors(fieldErrors);
+            toast.update(loadingToast, {
+              render: "Please fix the validation errors",
+              type: "error",
+              isLoading: false,
+              autoClose: 3000,
+            });
+            return;
+          }
+        }
+      }
+
+      const updatedUser = response?.results?.[0] || response?.successful_updates?.[0];
+      const message = updatedUser
+        ? `Password reset successfully for "${updatedUser.email}"!`
+        : `Password reset successful`;
+
+      toast.update(loadingToast, {
+        render: message,
+        type: "success",
+        isLoading: false,
+        autoClose: 2000,
+      });
+
+      setShowPasswordResetModal(false);
+      setSelectedUser(null);
+      setPasswordResetData({
+        email: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+      setPasswordErrors({});
+      setConfirmPasswordTouched(false);
+
+    } catch (error) {
+      console.error("Password reset error:", error);
+
+      let fieldErrors = {};
+      const errorData = error?.data;
+
+      if (errorData) {
+        // Handle bulk update format
+        if (errorData.failed_updates && Array.isArray(errorData.failed_updates)) {
+          const failedUpdate = errorData.failed_updates[0];
+
+          if (failedUpdate?.errors) {
+            Object.keys(failedUpdate.errors).forEach(field => {
+              if (Array.isArray(failedUpdate.errors[field])) {
+                const errorMessage = failedUpdate.errors[field].join(' ');
+                fieldErrors[field] = errorMessage;
+              }
+            });
+          }
+        }
+
+        // Handle standard VALIDATION_ERROR format
+        if (errorData.code === "VALIDATION_ERROR" && errorData.errors) {
+          Object.keys(errorData.errors).forEach(field => {
+            if (Array.isArray(errorData.errors[field])) {
+              fieldErrors[field] = errorData.errors[field].join(' ');
+            }
+          });
+        }
+
+        // Handle plain object errors
+        if (Object.keys(fieldErrors).length === 0 && typeof errorData === 'object') {
+          Object.keys(errorData).forEach(field => {
+            if (Array.isArray(errorData[field])) {
+              fieldErrors[field] = errorData[field].join(' ');
+            } else if (typeof errorData[field] === 'string') {
+              fieldErrors[field] = errorData[field];
+            }
+          });
+        }
+
+        if (Object.keys(fieldErrors).length > 0) {
+          setPasswordErrors(fieldErrors);
+          toast.update(loadingToast, {
+            render: "Please fix the validation errors",
+            type: "error",
+            isLoading: false,
+            autoClose: 3000,
+          });
+          return;
+        }
+      }
+
+      // Fallback generic error
+      let errorMessage = "Unknown error occurred";
+      if (error?.data?.message) {
+        errorMessage = error.data.message;
+      } else if (error?.data?.error) {
+        errorMessage = error.data.error;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
+      toast.update(loadingToast, {
+        render: `Failed to reset password: ${errorMessage}`,
+        type: "error",
+        isLoading: false,
+        autoClose: 5000,
+      });
+    }
+  };
+
+  // Handle checkbox selection
+  const handleUserSelect = (userId) => {
+    setSelectedUsers(prev => {
+      if (prev.includes(userId)) {
+        return prev.filter(id => id !== userId);
+      } else {
+        return [...prev, userId];
+      }
+    });
+  };
+
+  // Handle select all
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      const selectableUsers = filteredUsers.filter(rowUser => rowUser.id !== user?.id);
+      setSelectedUsers(selectableUsers.map(rowUser => rowUser.id));
+    } else {
+      setSelectedUsers([]);
+    }
+  };
+
+  // BULK ACTION HANDLERS
+  const handleBulkEditRoles = () => {
+    setIsActionsDropdownOpen(false);
+    setCurrentBulkAction('EDIT_ROLES');
+    setShowBulkActionModal(true);
+  };
+
+  const handleBulkEnableEmail = () => {
+    setIsActionsDropdownOpen(false);
+    setCurrentBulkAction('ENABLE_EMAIL');
+    setShowBulkActionModal(true);
+  };
+
+  const handleBulkDeleteUsers = () => {
+    setIsActionsDropdownOpen(false);
+    setCurrentBulkAction('DELETE_USERS');
+    setShowBulkActionModal(true);
+  };
+
+  const handleBulkToggleStatus = () => {
+    setIsActionsDropdownOpen(false);
+    setCurrentBulkAction('TOGGLE_STATUS');
+    setShowBulkActionModal(true);
+  };
+
+  const handleBulkActionSuccess = () => {
+    setSelectedUsers([]);
+    setShowBulkActionModal(false);
+    setCurrentBulkAction(null);
+    refetch();
+  };
 
   // Close actions dropdown when clicking outside
   useEffect(() => {
@@ -401,103 +803,134 @@ const UserListTab = ({ isDarkMode = false }) => {
   const handleEditUser = (userToEdit) => {
     setSelectedUser(userToEdit);
 
-    // Find the role UUID from the role name
     const matchingRole = editRoleOptions.find(
       role => role.label === userToEdit?.role_name
     );
 
-    setEditFormData({
+    const initialData = {
       username: userToEdit?.username || "",
       email: userToEdit?.email || "",
       role: matchingRole?.value || "",
-      is_active: userToEdit?.is_active ?? false,
-      is_email_enabled: userToEdit?.is_email_enabled ?? false,
-    });
+      is_user_enabled: userToEdit?.is_user_enabled ?? false,
+      is_email_override: !(userToEdit?.is_email_override ?? true),
+    };
+
+    setEditFormData(initialData);
+    setOriginalUserData(initialData);
+    setModifiedFields(new Set());
     setShowEditModal(true);
   };
 
+  // Helper to track field changes
+  const handleFieldChange = (fieldName, value) => {
+    setEditFormData(prev => ({ ...prev, [fieldName]: value }));
+
+    // Mark field as modified if value differs from original
+    if (value !== originalUserData[fieldName]) {
+      setModifiedFields(prev => new Set(prev).add(fieldName));
+    } else {
+      // Remove from modified if user reverted to original value
+      setModifiedFields(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(fieldName);
+        return newSet;
+      });
+    }
+  };
+
   const handleUpdateUser = async (e) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  const loadingToast = toast.loading("Updating user...");
-
-  try {
-    const response = await updateUser({
-      id: selectedUser?.id,
-      username: editFormData.username,
-      email: editFormData.email,
-      role: editFormData.role,
-      is_active: editFormData.is_active,
-      is_email_enabled: editFormData.is_email_enabled,
-    }).unwrap();
-
-    console.log("Backend update response:", response);
-
-    // Extract updated user object
-    const updatedUser = response?.results?.[0];
-
-    // Use backend message
-    const backendMessage = updatedUser?.message;
-
-    // Show toast with backend message
-    toast.update(loadingToast, {
-      render: backendMessage,
-      type: "success",
-      isLoading: false,
-      autoClose: 2000,
-    });
-
-    // Cleanup
-    setShowEditModal(false);
-    setSelectedUser(null);
-    setEditFormData({});
-    refetch();
-
-  } catch (error) {
-    console.error("Update error:", error);
-
-    let errorMessage = "Unknown error occurred";
-
-    if (error?.data) {
-      if (typeof error.data === "string") {
-        errorMessage = error.data;
-      } else if (error.data.message) {
-        errorMessage = error.data.message;
-      } else if (error.data.error) {
-        errorMessage = error.data.error;
-      } else if (error.data.detail) {
-        errorMessage = error.data.detail;
-      } else if (error.data.non_field_errors) {
-        errorMessage = Array.isArray(error.data.non_field_errors)
-          ? error.data.non_field_errors.join(", ")
-          : error.data.non_field_errors;
-      } else {
-        const fieldErrors = [];
-        Object.keys(error.data).forEach((field) => {
-          if (Array.isArray(error.data[field])) {
-            fieldErrors.push(`${field}: ${error.data[field].join(", ")}`);
-          } else if (typeof error.data[field] === "string") {
-            fieldErrors.push(`${field}: ${error.data[field]}`);
-          }
-        });
-        if (fieldErrors.length > 0) {
-          errorMessage = fieldErrors.join("; ");
-        }
-      }
-    } else if (error?.message) {
-      errorMessage = error.message;
+    // If nothing changed, don't make API call
+    if (modifiedFields.size === 0) {
+      toast.info("No changes detected");
+      setShowEditModal(false);
+      return;
     }
 
-    toast.update(loadingToast, {
-      render: `Failed to update user: ${errorMessage}`,
-      type: "error",
-      isLoading: false,
-      autoClose: 5000,
+    // Build payload with only modified fields
+    const payload = {
+      id: selectedUser?.id,
+    };
+
+    modifiedFields.forEach(fieldName => {
+      if (fieldName === 'is_email_override') {
+        payload[fieldName] = !editFormData[fieldName];
+      } else {
+        payload[fieldName] = editFormData[fieldName];
+      }
     });
-  }
-};
 
+    console.log("Update payload:", payload);
+    console.log("Modified fields:", Array.from(modifiedFields));
 
+    const loadingToast = toast.loading("Updating user...");
+
+    try {
+      const response = await updateUser(payload).unwrap();
+
+      console.log("Backend update response:", response);
+
+      const updatedUser = response?.results?.[0];
+      const backendMessage = updatedUser?.message || "User updated successfully";
+
+      toast.update(loadingToast, {
+        render: backendMessage,
+        type: "success",
+        isLoading: false,
+        autoClose: 2000,
+      });
+
+      setShowEditModal(false);
+      setSelectedUser(null);
+      setEditFormData({});
+      setOriginalUserData({});
+      setModifiedFields(new Set());
+      refetch();
+
+    } catch (error) {
+      console.error("Update error:", error);
+
+      let errorMessage = "Unknown error occurred";
+
+      if (error?.data) {
+        if (typeof error.data === "string") {
+          errorMessage = error.data;
+        } else if (error.data.message) {
+          errorMessage = error.data.message;
+        } else if (error.data.error) {
+          errorMessage = error.data.error;
+        } else if (error.data.detail) {
+          errorMessage = error.data.detail;
+        } else if (error.data.non_field_errors) {
+          errorMessage = Array.isArray(error.data.non_field_errors)
+            ? error.data.non_field_errors.join(", ")
+            : error.data.non_field_errors;
+        } else {
+          const fieldErrors = [];
+          Object.keys(error.data).forEach((field) => {
+            if (Array.isArray(error.data[field])) {
+              fieldErrors.push(`${field}: ${error.data[field].join(", ")}`);
+            } else if (typeof error.data[field] === "string") {
+              fieldErrors.push(`${field}: ${error.data[field]}`);
+            }
+          });
+          if (fieldErrors.length > 0) {
+            errorMessage = fieldErrors.join("; ");
+          }
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
+      toast.update(loadingToast, {
+        render: `Failed to update user: ${errorMessage}`,
+        type: "error",
+        isLoading: false,
+        autoClose: 5000,
+      });
+    }
+  };
 
   const handleDeleteUser = (userToDelete) => {
     setSelectedUser(userToDelete);
@@ -541,7 +974,6 @@ const UserListTab = ({ isDarkMode = false }) => {
       });
     }
   };
-
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -749,7 +1181,6 @@ const UserListTab = ({ isDarkMode = false }) => {
             />
           </div>
 
-          {/*RoleDropdown: Extracts roles from user data, only shows roles with users */}
           <RoleDropdown
             selectedRole={selectedRole}
             setSelectedRole={setSelectedRole}
@@ -956,10 +1387,10 @@ const UserListTab = ({ isDarkMode = false }) => {
                       <div className="flex justify-center items-center h-full">
                         <span
                           className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeColor(
-                            rowUser?.is_active
+                            rowUser?.is_user_enabled
                           )}`}
                         >
-                          {rowUser?.is_active
+                          {rowUser?.is_user_enabled
                             ? "Active"
                             : "Inactive"}
                         </span>
@@ -1101,7 +1532,10 @@ const UserListTab = ({ isDarkMode = false }) => {
         <div
           className="fixed inset-0 z-[9999] flex items-center justify-center backdrop-blur-sm"
           style={{ backgroundColor: "rgba(0, 0, 0, 0.1)" }}
-          onClick={() => setShowEditModal(false)}
+          onClick={() => {
+            setShowEditModal(false);
+            setModifiedFields(new Set());
+          }}
         >
           <div
             className="rounded-xl p-6 max-w-2xl w-full relative shadow-2xl border mx-4"
@@ -1119,7 +1553,10 @@ const UserListTab = ({ isDarkMode = false }) => {
           >
             <div className="absolute top-0 right-0 pt-4 pr-4">
               <button
-                onClick={() => setShowEditModal(false)}
+                onClick={() => {
+                  setShowEditModal(false);
+                  setModifiedFields(new Set());
+                }}
                 className={
                   isDarkMode
                     ? "text-gray-400 hover:text-gray-300"
@@ -1140,78 +1577,61 @@ const UserListTab = ({ isDarkMode = false }) => {
                 </h3>
 
                 <form onSubmit={handleUpdateUser} className="space-y-4">
+                  {/* Username Input */}
                   <div>
                     <label
                       className="block text-sm font-medium mb-1"
-                      style={{
-                        color: isDarkMode ? "#D1D5DB" : "#374151",
-                      }}
+                      style={{ color: isDarkMode ? "#D1D5DB" : "#374151" }}
                     >
                       Username
                     </label>
                     <input
                       type="text"
                       value={editFormData.username}
-                      onChange={(e) =>
-                        setEditFormData({
-                          ...editFormData,
-                          username: e.target.value,
-                        })
-                      }
+                      onChange={(e) => handleFieldChange('username', e.target.value)} 
                       className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${isDarkMode
-                        ? "bg-gray-700 border-gray-600 text-white"
-                        : "bg-white border-gray-300 text-gray-900"
+                          ? "bg-gray-700 border-gray-600 text-white"
+                          : "bg-white border-gray-300 text-gray-900"
                         }`}
                       required
                     />
                   </div>
 
+                  {/* Email Input */}
                   <div>
                     <label
                       className="block text-sm font-medium mb-1"
-                      style={{
-                        color: isDarkMode ? "#D1D5DB" : "#374151",
-                      }}
+                      style={{ color: isDarkMode ? "#D1D5DB" : "#374151" }}
                     >
                       Email
                     </label>
                     <input
                       type="email"
                       value={editFormData.email}
-                      onChange={(e) =>
-                        setEditFormData({
-                          ...editFormData,
-                          email: e.target.value,
-                        })
-                      }
+                      onChange={(e) => handleFieldChange('email', e.target.value)} 
                       className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${isDarkMode
-                        ? "bg-gray-700 border-gray-600 text-white"
-                        : "bg-white border-gray-300 text-gray-900"
+                          ? "bg-gray-700 border-gray-600 text-white"
+                          : "bg-white border-gray-300 text-gray-900"
                         }`}
                       required
                     />
                   </div>
 
+                  {/* Role Dropdown */}
                   <div>
                     <label
                       className="block text-sm font-medium mb-1"
-                      style={{
-                        color: isDarkMode ? "#D1D5DB" : "#374151",
-                      }}
+                      style={{ color: isDarkMode ? "#D1D5DB" : "#374151" }}
                     >
                       Role
                     </label>
-                    {/*  EditRoleDropdown: Shows ALL roles from API */}
                     <EditRoleDropdown
-                      roleOptions={editRoleOptions || []}
-                      selectedRole={editFormData.role || ""}
-                      setSelectedRole={(role) =>
-                        setEditFormData({ ...editFormData, role })
-                      }
+                      roleOptions={editRoleOptions}
+                      selectedRole={editFormData.role}
+                      setSelectedRole={(role) => handleFieldChange('role', role)} 
                       isDarkMode={isDarkMode}
                       isLoading={rolesLoading}
                     />
-
                     {rolesError && (
                       <p className="mt-0.5 text-xs text-red-600">
                         Error loading roles. Please try again.
@@ -1219,93 +1639,86 @@ const UserListTab = ({ isDarkMode = false }) => {
                     )}
                   </div>
 
-                  {/* User Status Checkboxes Section */}
-                  <div className={`p-3 rounded-lg border ${isDarkMode
-                    ? 'bg-gray-700/50 border-gray-600'
-                    : 'bg-gray-50 border-gray-200'
-                    }`}>
+                  {/* Status Checkboxes */}
+                  <div
+                    className={`p-3 rounded-lg border ${isDarkMode
+                        ? "bg-gray-700/50 border-gray-600"
+                        : "bg-gray-50 border-gray-200"
+                      }`}
+                  >
                     <div className="space-y-2">
                       {/* Active User Checkbox */}
                       <div className="flex items-center">
                         <input
                           type="checkbox"
-                          id="is_active"
-                          checked={editFormData.is_active || false}
-                          onChange={(e) =>
-                            setEditFormData({
-                              ...editFormData,
-                              is_active: e.target.checked,
-                            })
-                          }
+                          id="is_user_enabled"
+                          checked={editFormData.is_user_enabled || false}
+                          onChange={(e) => handleFieldChange('is_user_enabled', e.target.checked)} 
                           className={`w-4 h-4 rounded border transition-colors cursor-pointer ${isDarkMode
-                            ? 'border-gray-500 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-700'
-                            : 'border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-offset-white'
+                              ? "border-gray-500 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-700"
+                              : "border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-offset-white"
                             }`}
                         />
                         <label
-                          htmlFor="is_active"
+                          htmlFor="is_user_enabled"
                           className="ml-2 text-sm font-medium cursor-pointer"
-                          style={{
-                            color: isDarkMode ? "#D1D5DB" : "#374151",
-                          }}
+                          style={{ color: isDarkMode ? "#D1D5DB" : "#374151" }}
                         >
                           Active User
                         </label>
                       </div>
 
-                      {/* EMAIL NOTIFICATIONS CHECKBOX */}
+                      {/* Email Enabled Checkbox */}
                       <div className="flex items-center">
                         <input
                           type="checkbox"
-                          id="is_email_enabled"
-                          checked={editFormData.is_email_enabled || false}
-                          onChange={(e) =>
-                            setEditFormData({
-                              ...editFormData,
-                              is_email_enabled: e.target.checked,
-                            })
-                          }
+                          id="is_email_override"
+                          checked={editFormData.is_email_override || false}
+                          onChange={(e) => handleFieldChange('is_email_override', e.target.checked)}
                           className={`w-4 h-4 rounded border transition-colors cursor-pointer ${isDarkMode
-                            ? 'border-gray-500 text-green-500 focus:ring-green-500 focus:ring-offset-gray-700'
-                            : 'border-gray-300 text-green-600 focus:ring-green-500 focus:ring-offset-white'
+                              ? "border-gray-500 text-green-500 focus:ring-green-500 focus:ring-offset-gray-700"
+                              : "border-gray-300 text-green-600 focus:ring-green-500 focus:ring-offset-white"
                             }`}
                         />
                         <label
-                          htmlFor="is_email_enabled"
+                          htmlFor="is_email_override"
                           className="ml-2 text-sm font-medium cursor-pointer"
-                          style={{
-                            color: isDarkMode ? "#D1D5DB" : "#374151",
-                          }}
+                          style={{ color: isDarkMode ? "#D1D5DB" : "#374151" }}
                         >
                           Enable Email Verification
                         </label>
                       </div>
                     </div>
+
                     <p
                       className="mt-2 text-xs"
-                      style={{ color: isDarkMode ? '#9CA3AF' : '#6B7280' }}
+                      style={{ color: isDarkMode ? "#9CA3AF" : "#6B7280" }}
                     >
                       Control user account status and email verification
                     </p>
                   </div>
 
+                  {/* Buttons */}
                   <div className="flex justify-end space-x-3 pt-4">
                     <button
                       type="button"
-                      onClick={() => setShowEditModal(false)}
+                      onClick={() => {
+                        setShowEditModal(false);
+                        setModifiedFields(new Set());
+                      }}
                       className={`px-4 py-2 rounded-lg ${isDarkMode
-                        ? "text-gray-300 bg-gray-600 hover:bg-gray-500"
-                        : "text-gray-700 bg-gray-200 hover:bg-gray-300"
+                          ? "text-gray-300 bg-gray-600 hover:bg-gray-500"
+                          : "text-gray-700 bg-gray-200 hover:bg-gray-300"
                         }`}
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      disabled={rolesLoading}
+                      disabled={rolesLoading || modifiedFields.size === 0} 
                       className="px-4 py-2 bg-[#6366f1] text-white rounded-lg hover:bg-[#6366f1]/80 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Update User
+                      Update User {modifiedFields.size > 0 && `(${modifiedFields.size})`}
                     </button>
                   </div>
                 </form>
@@ -1314,6 +1727,7 @@ const UserListTab = ({ isDarkMode = false }) => {
           </div>
         </div>
       )}
+
 
       {/* Delete User Modal */}
       {showDeleteModal && (
@@ -1402,7 +1816,11 @@ const UserListTab = ({ isDarkMode = false }) => {
         <div
           className="fixed inset-0 z-[9999] flex items-center justify-center backdrop-blur-sm"
           style={{ backgroundColor: "rgba(0, 0, 0, 0.1)" }}
-          onClick={() => setShowPasswordResetModal(false)}
+          onClick={() => {
+            setShowPasswordResetModal(false);
+            setPasswordErrors({});
+            setConfirmPasswordTouched(false);
+          }}
         >
           <div
             className="rounded-xl p-6 max-w-md w-full relative shadow-2xl border mx-4"
@@ -1420,7 +1838,11 @@ const UserListTab = ({ isDarkMode = false }) => {
           >
             <div className="absolute top-0 right-0 pt-4 pr-4">
               <button
-                onClick={() => setShowPasswordResetModal(false)}
+                onClick={() => {
+                  setShowPasswordResetModal(false);
+                  setPasswordErrors({});
+                  setConfirmPasswordTouched(false);
+                }}
                 className={
                   isDarkMode
                     ? "text-gray-400 hover:text-gray-300"
@@ -1455,10 +1877,11 @@ const UserListTab = ({ isDarkMode = false }) => {
                       type="email"
                       value={passwordResetData.email}
                       readOnly
-                      className={`w-full px-3 py-2 border rounded-lg cursor-not-allowed opacity-70 ${isDarkMode
-                        ? "bg-gray-700 border-gray-600 text-gray-400"
-                        : "bg-gray-100 border-gray-300 text-gray-600"
-                        }`}
+                      className={`w-full px-3 py-2 border rounded-lg cursor-not-allowed opacity-70 ${
+                        isDarkMode
+                          ? "bg-gray-700 border-gray-600 text-gray-400"
+                          : "bg-gray-100 border-gray-300 text-gray-600"
+                      }`}
                     />
                   </div>
 
@@ -1476,19 +1899,10 @@ const UserListTab = ({ isDarkMode = false }) => {
                       <input
                         type={showNewPassword ? "text" : "password"}
                         value={passwordResetData.newPassword}
-                        onChange={(e) =>
-                          setPasswordResetData({
-                            ...passwordResetData,
-                            newPassword: e.target.value,
-                          })
-                        }
-                        className={`w-full px-3 py-2 pr-10 border rounded-lg focus:ring-2 focus:ring-blue-500 ${isDarkMode
-                          ? "bg-gray-700 border-gray-600 text-white"
-                          : "bg-white border-gray-300 text-gray-900"
-                          }`}
+                        onChange={(e) => handlePasswordResetChange('newPassword', e.target.value)}
+                        className={`w-full px-3 py-2 pr-10 border rounded-lg focus:ring-2 ${getPasswordResetInputStyling('newPassword')}`}
                         placeholder="Enter new password"
                         required
-                        minLength={8}
                       />
                       <button
                         type="button"
@@ -1509,6 +1923,10 @@ const UserListTab = ({ isDarkMode = false }) => {
                         )}
                       </button>
                     </div>
+                    {/* Show backend password errors */}
+                    {passwordErrors.password && (
+                      <p className="text-xs mt-1 text-red-500">{passwordErrors.password}</p>
+                    )}
                   </div>
 
                   {/* Confirm Password */}
@@ -1525,19 +1943,11 @@ const UserListTab = ({ isDarkMode = false }) => {
                       <input
                         type={showConfirmPassword ? "text" : "password"}
                         value={passwordResetData.confirmPassword}
-                        onChange={(e) =>
-                          setPasswordResetData({
-                            ...passwordResetData,
-                            confirmPassword: e.target.value,
-                          })
-                        }
-                        className={`w-full px-3 py-2 pr-10 border rounded-lg focus:ring-2 focus:ring-blue-500 ${isDarkMode
-                          ? "bg-gray-700 border-gray-600 text-white"
-                          : "bg-white border-gray-300 text-gray-900"
-                          }`}
+                        onChange={(e) => handlePasswordResetChange('confirmPassword', e.target.value)}
+                        onBlur={() => setConfirmPasswordTouched(true)}
+                        className={`w-full px-3 py-2 pr-10 border rounded-lg focus:ring-2 ${getPasswordResetInputStyling('confirmPassword')}`}
                         placeholder="Confirm new password"
                         required
-                        minLength={8}
                       />
                       <button
                         type="button"
@@ -1558,43 +1968,56 @@ const UserListTab = ({ isDarkMode = false }) => {
                         )}
                       </button>
                     </div>
+
+                    {/* Password Match Indicator */}
+                    {confirmPasswordTouched && passwordResetData.newPassword && passwordResetData.confirmPassword && (
+                      <p
+                        className="text-xs mt-1"
+                        style={{
+                          color:
+                            passwordResetData.newPassword === passwordResetData.confirmPassword
+                              ? "#10B981"
+                              : "#EF4444",
+                        }}
+                      >
+                        {passwordResetData.newPassword === passwordResetData.confirmPassword
+                          ? "✓ Passwords match"
+                          : "✗ Passwords do not match"}
+                      </p>
+                    )}
+
+                    {passwordErrors.confirmPassword && (
+                      <p className="text-xs mt-1 text-red-500">{passwordErrors.confirmPassword}</p>
+                    )}
                   </div>
-
-
-                  {/* Password Match Indicator */}
-                  {passwordResetData.newPassword && passwordResetData.confirmPassword && (
-                    <p
-                      className="text-xs"
-                      style={{
-                        color:
-                          passwordResetData.newPassword === passwordResetData.confirmPassword
-                            ? "#10B981"
-                            : "#EF4444",
-                      }}
-                    >
-                      {passwordResetData.newPassword === passwordResetData.confirmPassword
-                        ? "✓ Passwords match"
-                        : "✗ Passwords do not match"}
-                    </p>
-                  )}
 
                   {/* Buttons */}
                   <div className="flex justify-end space-x-3 pt-4">
                     <button
                       type="button"
-                      onClick={() => setShowPasswordResetModal(false)}
-                      className={`px-4 py-2 rounded-lg ${isDarkMode
-                        ? "text-gray-300 bg-gray-600 hover:bg-gray-500"
-                        : "text-gray-700 bg-gray-200 hover:bg-gray-300"
-                        }`}
+                      onClick={() => {
+                        setShowPasswordResetModal(false);
+                        setPasswordErrors({});
+                        setConfirmPasswordTouched(false);
+                      }}
+                      className={`px-4 py-2 rounded-lg ${
+                        isDarkMode
+                          ? "text-gray-300 bg-gray-600 hover:bg-gray-500"
+                          : "text-gray-700 bg-gray-200 hover:bg-gray-300"
+                      }`}
                     >
                       Close
                     </button>
                     <button
                       type="submit"
-                      className="px-4 py-2 bg-[#6366f1] text-white rounded-lg hover:bg-[#6366f1]/80"
+                      disabled={
+                        !passwordResetData.newPassword ||
+                        !passwordResetData.confirmPassword ||
+                        passwordResetData.newPassword !== passwordResetData.confirmPassword
+                      }
+                      className="px-4 py-2 bg-[#6366f1] text-white rounded-lg hover:bg-[#6366f1]/80 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Apply
+                      Reset Password
                     </button>
                   </div>
                 </form>
@@ -1611,9 +2034,9 @@ const UserListTab = ({ isDarkMode = false }) => {
           setShowBulkActionModal(false);
           setCurrentBulkAction(null);
         }}
-        actionType={currentBulkAction}
-        selectedUsers={selectedUsers}
+        selectedItems={selectedUsers}
         isDarkMode={isDarkMode}
+        config={getCurrentConfig()}
         onSuccess={handleBulkActionSuccess}
       />
     </>

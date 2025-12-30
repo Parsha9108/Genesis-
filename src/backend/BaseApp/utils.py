@@ -4,8 +4,7 @@ from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 import jwt
 from django.conf import settings
-from BaseApp.models import WebUser
-
+from BaseApp.models import WebUser 
 class JWTCookieAuthentication(BaseAuthentication):
     def authenticate(self, request):
         token = request.COOKIES.get('jwt')
@@ -42,3 +41,4 @@ def check_permission(module, allowed_action):
             
         return wrapper
     return decorator
+

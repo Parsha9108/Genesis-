@@ -7,7 +7,7 @@ import uuid
 from simple_history.models import HistoricalRecords
 from oauth2_provider.models import Application, get_access_token_model
 from simple_history.utils import update_change_reason
-from .roles import *
+from .roles import Role
 from .base_audit_model import BaseAuditModel
 
 
@@ -651,7 +651,7 @@ class Alert(models.Model):
     
     agent = models.ForeignKey(Agent, on_delete=models.CASCADE, related_name='alerts')
     uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    device_name = models.CharField(max_length=100)  
+    device_name = models.CharField(max_length=100) 
     alert_type = models.CharField(max_length=50, choices=ALERT_TYPE_CHOICES)
     severity = models.CharField(max_length=20, choices=SEVERITY_CHOICES)
     source_uuid = models.CharField(max_length=100)  
@@ -688,19 +688,18 @@ class MonitoringSession(models.Model):
     
 
 class WebUser(BaseAuditModel):
-    # choices constraint - allow any role value
+
+    AUDIT_IGNORE_FIELDS = ["is_email_verified", "date_joined","last_login","is_email_override"]
     role = models.ForeignKey(Role, on_delete=models.PROTECT, null=True)
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     username = models.CharField(max_length=100, unique=True)
     password = models.CharField(max_length=128)
     email = models.EmailField(unique=True)
-    is_active = models.BooleanField(default=False)
+    is_user_enabled = models.BooleanField(default=True)
     date_joined = models.DateTimeField(auto_now_add=True)
-    last_logout_time = models.DateTimeField(null=True, blank=True)
-    is_currently_logged_in = models.BooleanField(default=False)
     last_login = models.DateTimeField(null=True, blank=True)
-    is_first_login = models.BooleanField(default=True)
-    
+    is_email_verified = models.BooleanField(default=False)
+    is_email_override = models.BooleanField(default=False)
     @property
     def is_authenticated(self):
         return True
@@ -713,25 +712,6 @@ class WebUser(BaseAuditModel):
     def __str__(self):
         return f"{self.username} ({self.role})"
 
-class Permission(models.Model):
-    """Define all available permissions"""
-    name = models.CharField(max_length=100, unique=True)
-    description = models.TextField()
-    category = models.CharField(max_length=50) 
-    
-    def __str__(self):
-        return f"{self.category}: {self.name}"
-    
-class UserPermission(models.Model):
-    """Link users to their specific permissions"""
-    user = models.ForeignKey(WebUser, on_delete=models.CASCADE, related_name='permissions')
-    permission = models.ForeignKey(Permission, on_delete=models.CASCADE)
-    granted_by = models.ForeignKey(WebUser, on_delete=models.SET_NULL, null=True, related_name='granted_permissions')
-    granted_at = models.DateTimeField(auto_now_add=True)
-    is_active = models.BooleanField(default=True)
-    
-    class Meta:
-        unique_together = ['user', 'permission']
 
 class Group(models.Model):
     user = models.ForeignKey(WebUser, on_delete=models.CASCADE,related_name="webuser")

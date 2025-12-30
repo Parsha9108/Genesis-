@@ -5,9 +5,10 @@ from django.core.exceptions import ValidationError
 from django.core.validators import validate_email, validate_ipv4_address, validate_ipv6_address
 import re
 import logging
+from BaseApp.models.base_audit_model import BaseAuditModel
 logger = logging.getLogger("agent_monitoring")
 
-class GlobalConfig(models.Model):
+class GlobalConfig(BaseAuditModel):
     #  Generic key/value config storage.
     # - key: unique identifier
     # - value: stored as string (or JSON for structured)

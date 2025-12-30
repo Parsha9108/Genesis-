@@ -9,6 +9,8 @@ from rest_framework import serializers
 from django.core.validators import validate_ipv4_address, validate_ipv6_address
 from .models import *
 from django.contrib.auth.hashers import make_password
+import logging
+from django.contrib.auth.hashers import check_password
 
 # CPU Serializer
 class CPUSerializer(serializers.ModelSerializer):
@@ -258,6 +260,7 @@ class DiskMonitoringSerializer(serializers.ModelSerializer):
 class WebUserSerializer(serializers.ModelSerializer):
     confirm_password = serializers.CharField(write_only=True)
     role_name = serializers.CharField(source='role.role_name', read_only=True)
+    
     class Meta:
         model = WebUser
         fields ='__all__' 
@@ -266,12 +269,77 @@ class WebUserSerializer(serializers.ModelSerializer):
             'role': {'write_only': True},
         }
  
+    def validate_password(self, value):
+        """
+        Validate password strength
+        """
+       
+    
+        if not value:
+            return value
+        
+        errors = []
+        
+        # Minimum 8 characters
+        if len(value) < 8:
+            errors.append("Password must be at least 8 characters long.")
+        
+        # At least one uppercase letter
+        if not re.search(r'[A-Z]', value):
+            errors.append("Password must contain at least one uppercase letter.")
+        
+        #  At least one lowercase letter
+        if not re.search(r'[a-z]', value):
+            errors.append("Password must contain at least one lowercase letter.")
+        
+        # At least one number
+        if not re.search(r'\d', value):
+            errors.append("Password must contain at least one number.")
+        
+        # At least one special character
+        if not re.search(r'[!@#$%^&*()_+\-=\[\]{};:,.<>?/\\|`~]', value):
+            errors.append("Password must contain at least one special character.")
+        
+        # Raise errors if any validation failed
+        if errors:
+            raise serializers.ValidationError(errors)
+        
+        return value
+ 
     def validate(self, attrs):
-        if attrs['password'] != attrs['confirm_password']:
-            raise serializers.ValidationError("Passwords do not match.")
+        """Cross-field validation"""
+        password = attrs.get('password')
+        confirm_password = attrs.get('confirm_password')
+        
+        is_create = self.instance is None
+        logger.info(f"DEBUG validate(): password='{password}', confirm_password='{confirm_password}'")
+        print(f"DEBUG validate(): attrs keys={list(attrs.keys())}")
+        print(f"DEBUG validate(): attrs={attrs}")
+        #  Password required for creation
+        if is_create and not password:
+            raise serializers.ValidationError({
+                'password': 'Password is required when creating a user.'
+            })
+        
+        # Validate password confirmation
+        if password:
+            if password != confirm_password:
+                raise serializers.ValidationError({
+                    'confirm_password': 'Passwords do not match.'
+                })
+            
+            #  For updates: check if same as current password
+        if password and self.instance and self.instance.pk:
+            # Use Django's check_password function directly
+            if check_password(password, self.instance.password):
+                raise serializers.ValidationError({
+                    'password': 'New password cannot be the same as your old password.'
+                })
+    
         return attrs
-  
+
     def create(self, validated_data):
+        request= self.context["request"]
         validated_data.pop('confirm_password')
         role = validated_data.get('role') 
         
@@ -279,9 +347,25 @@ class WebUserSerializer(serializers.ModelSerializer):
         user = WebUser(**validated_data)
         user.password = make_password(validated_data['password']) 
         
-        user.save()
+        user.save(request=request)
         return user  
-
+    def update(self, instance, validated_data):
+        """Update user"""
+        request = self.context.get("request")
+        validated_data.pop('confirm_password', None)
+        
+        # Extract password if provided
+        password = validated_data.pop('password', None)
+        # Update other fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        if password:
+            instance.password = make_password(password)
+        
+         # Save updated user
+        instance.save(request=request)
+        return instance
+    
 class WebLoginSerializer(serializers.Serializer):
     email = serializers.CharField()
     password = serializers.CharField(write_only=True)   
@@ -351,36 +435,6 @@ class UserGroupsSerializer(serializers.Serializer):
     
     def get_total_groups(self, obj):
         return len(obj['groups']) if isinstance(obj, dict) and 'groups' in obj else obj.count()
-
-class UserUpdateSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = WebUser
-        fields = ['username', 'email','password','role','is_active','is_email_enabled']
-    
-    def validate_username(self, value):
-        """Validate username uniqueness"""
-        if value:
-            # Check if username already exists for other users
-            if WebUser.objects.filter(username=value).exclude(pk=self.instance.pk).exists():
-                raise serializers.ValidationError("This username is already taken.")
-        return value
-
-    def validate_email(self, value):
-        """Validate email format and uniqueness"""
-        if value:
-            # Check if email already exists for other users
-            if WebUser.objects.filter(email=value).exclude(pk=self.instance.pk).exists():
-                raise serializers.ValidationError("This email is already in use.")
-        return value
-
-    def update(self, instance, validated_data):
-        """Update only the fields that are provided"""
-        for attr, value in validated_data.items():
-            if value is not None:  # Update if value is provided (including empty role)
-                setattr(instance, attr, value)
-        
-        instance.save()
-        return instance
 
 class WebLoginSerializer(serializers.Serializer):
     email = serializers.CharField()
@@ -478,12 +532,13 @@ class AvailableWebAgentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Agent
         fields = ["uuid", "os", "os_version", "hostname", "device","status","uptime_started_at"]  
+
 class RoleSerializer(serializers.ModelSerializer):
     """
     Serializer for Role model
-    Basic role details without permissions
+    Basic role details without sss
     """
-    
+
     class Meta:
         model = Role
         fields = ['role_name']
@@ -564,6 +619,7 @@ class RoleCreateUpdateSerializer(serializers.ModelSerializer):
     Serializer for creating/updating roles with permissions
     Handles nested permission creation/update
     """
+   
     permissions = PermissionSetCreateSerializer(
         many=True,
         write_only=True,
@@ -624,16 +680,45 @@ class RoleCreateUpdateSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         """Create role with nested permissions"""
+        print("=== SERIALIZER CREATE CALLED TO CREATE ROLE===")
         try:
+            request= self.context['request']
+            request_user=request.user
+            print("requested_user",request_user)
+        
             # Extract permissions from validated_data
             permissions_data = validated_data.pop('permissions', [])
             
-            # Create role
-            role = Role.objects.create(**validated_data)
+            # Build new permissions snapshot from the incoming data
+            new_permissions_snapshot = {}
+            for perm_data in permissions_data:
+                module = perm_data['module']
+                # Get display name if available
+                try:
+                    from BaseApp.models import PermissionSet
+                    module_display = dict(PermissionSet.modules).get(module, module)
+                except:
+                    module_display = module
+                    
+                new_permissions_snapshot[module] = {
+                    'create': perm_data.get('create', False),
+                    'read': perm_data.get('read', False),
+                    'update': perm_data.get('update', False),
+                    'delete': perm_data.get('delete', False),
+                    'display': module_display
+                }
             
+            print(f"New permissions snapshot: {new_permissions_snapshot}")
+            
+            # Create role instance (not saved yet)
+            role = Role(**validated_data)
+            
+            # Save with new permissions snapshot for audit log
+            role.save(request=request, new_permissions_snapshot=new_permissions_snapshot)
+        
             # Create permissions
             for perm_data in permissions_data:
-                PermissionSet.objects.create(
+                perm=PermissionSet.objects.create(
                     role=role,
                     module=perm_data['module'],
                     create=perm_data.get('create', False),
@@ -641,7 +726,13 @@ class RoleCreateUpdateSerializer(serializers.ModelSerializer):
                     update=perm_data.get('update', False),
                     delete=perm_data.get('delete', False)
                 )
-            
+                print(f"Created permission: {perm.module} - C:{perm.create} R:{perm.read} U:{perm.update} D:{perm.delete}")
+        
+        # Verify permissions were created
+            created_perms = role.permissionset_set.all()
+            print(f"Total permissions created: {created_perms.count()}")
+                
+            role.save(request=request)
             return role
         except Exception as e:
             # Rollback if creation fails
@@ -650,19 +741,35 @@ class RoleCreateUpdateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(f"Failed to create role: {str(e)}")
     
     def update(self, instance, validated_data):
+        print("=== SERIALIZER UPDATE CALLED TO UPDATE ROLE ===")
         """
         Update role and/or its permissions
         - If role_name provided: update role name
         - If permissions provided: update permissions
         """
         try:
-            # Extract permissions from validated_data
+            request= self.context['request']
+            request_user=request.user
             permissions_data = validated_data.pop('permissions', None)
-            
+            print(f"requested user to update {request_user}")
             # Update role name only if provided
+
+            old_permissionset_snapshot = None
+            if permissions_data is not None:
+               old_permissionset_snapshot = {}
+               for perm in instance.permissionset_set.all():
+                   module_display = perm.get_module_display() if hasattr(perm,'get_module_display') else perm.module
+                   old_permissionset_snapshot[perm.module] = {
+                       'create':perm.create,
+                       'read':perm.read,
+                       'update':perm.update,
+                       'delete': perm.delete,
+                       'display': module_display
+
+                   }
+
             if 'role_name' in validated_data:
                 instance.role_name = validated_data['role_name']
-                instance.save()
             
             # Update permissions only if provided
             if permissions_data is not None:
@@ -670,21 +777,64 @@ class RoleCreateUpdateSerializer(serializers.ModelSerializer):
                 if not isinstance(permissions_data, list):
                     raise serializers.ValidationError("Permissions must be a list")
                 
-                # Delete existing permissions
-                instance.permissionset_set.all().delete()
+                # Get existing permissions mapped by module
+                existing_permission = {
+                    perm.module: perm
+                    for perm in instance.permissionset_set.all()
+                }
+
+                updated_modules = set()
                 
-                # Create new permissions
+                # Process each permission in the request
                 for perm_data in permissions_data:
-                    PermissionSet.objects.create(
-                        role=instance,
-                        module=perm_data.get('module'),
-                        create=perm_data.get('create', False),
-                        read=perm_data.get('read', False),
-                        update=perm_data.get('update', False),
-                        delete=perm_data.get('delete', False)
-                    )
+                    module = perm_data.get('module')
+                    updated_modules.add(module)
+                    
+                    # Update existing or create new
+                    if module in existing_permission:
+                        # Update existing permission
+                        perm = existing_permission[module]
+                        perm.create = perm_data.get("create", False)
+                        perm.read = perm_data.get('read', False)
+                        perm.update = perm_data.get('update', False)
+                        perm.delete = perm_data.get('delete', False)
+                        perm.save()  # ✅ Save individual permission (no audit)
+                    else:
+                        # Create new permission
+                        PermissionSet.objects.create(
+                            role=instance,
+                            module=module,
+                            create=perm_data.get('create', False),
+                            read=perm_data.get('read', False),
+                            update=perm_data.get('update', False),
+                            delete=perm_data.get('delete', False)
+                        )
+                
+                # Delete removed permissions
+                modules_delete = set(existing_permission.keys()) - updated_modules
+                if modules_delete:
+                    instance.permissionset_set.filter(module__in=modules_delete).delete()
+            
+            #  Save role with audit log (includes permission changes)
+            instance.save(old_permissions_snapshot=old_permissionset_snapshot,request=request)
             
             return instance
+            
         except Exception as e:
             raise serializers.ValidationError(f"Failed to update role: {str(e)}")
+
+from BaseApp.models.audit_logs import AuditLog
+
+class AuditLogSerializer(serializers.ModelSerializer):
+    severity_display= serializers.SerializerMethodField()
+    
+    class Meta:
+        model = AuditLog
+        fields = [
+            'uuid', 'user', 'action', 'model_name', 'description',
+            'ip', 'severity_display', 'timestamp'
+        ]
+
+    def get_severity_display(self, obj):
+        return obj.get_severity_display() 
 

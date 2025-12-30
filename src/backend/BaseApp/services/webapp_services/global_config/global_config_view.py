@@ -9,30 +9,21 @@ from BaseApp.utils import check_permission
 from django.utils.decorators import method_decorator
 from rest_framework.permissions import IsAuthenticated
 from BaseApp.utils import JWTCookieAuthentication
-
+from BaseApp.models.base_audit_model import BaseAuditModel
 logger = logging.getLogger("agent_monitoring")
 
 # Keys that should be masked when returning to clients
-SENSITIVE_KEY_SUBSTRINGS = ("password", "secret", "token", "key")
 
-def _mask_if_sensitive(item_key, value):
-    if any(sub in item_key.lower() for sub in SENSITIVE_KEY_SUBSTRINGS):
-        return "****************"
-    return value
+def bulk_update_configs(request,config_dict):
 
-def bulk_update_configs(config_dict):
-   
-
-    MASK = "****************"
     updated = []
     validation_errors = []
     validated_data = {}
 
-    # Step 1 — Remove masked values (never overwrite real passwords)
+    
     cleaned_dict = {
         key: value
         for key, value in config_dict.items()
-        if not (isinstance(value, str) and value.strip() == MASK)
     }
 
     # Step 2 — Validate the remaining values
@@ -56,7 +47,7 @@ def bulk_update_configs(config_dict):
         try:
             config = GlobalConfig.objects.get(item_key=key)
             config.item_value = value
-            config.save(update_fields=["item_value"])
+            config.save(request=request,update_fields=["item_value"])
             updated.append(key)
 
         except GlobalConfig.DoesNotExist:
@@ -93,8 +84,9 @@ class GlobalConfigView(APIView):
     def patch(self, request):
 
         config_data = request.data
-
-        updated_count, errors = bulk_update_configs(config_data)
+        user = request.user
+        logger.info(f"Received config update request: {config_data}")
+        updated_count, errors = bulk_update_configs(request,config_data)
 
         if errors:
             return Response({
@@ -105,7 +97,7 @@ class GlobalConfigView(APIView):
 
         return Response({
             "success": True,
-            "message": "SMTP configurations updated successfully.",
+            "message": "configurations updated successfully.",
             "summary": {
                 "updated": updated_count
             }

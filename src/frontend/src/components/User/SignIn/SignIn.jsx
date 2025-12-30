@@ -34,14 +34,7 @@ const SignIn = () => {
       if (res.status === 200) {
         toast.success(res.data.message || "Login successful!");
         setAuthenticated(true);
-
-        if (res.data?.first_time_login) {
-          navigate("/reset-password/first-time", {
-            state: { email: res.data.email },
-          });
-        } else {
-          navigate("/");
-        }
+        navigate("/");
       }
 
       // Added this to fecth the permissions 
@@ -75,8 +68,8 @@ const SignIn = () => {
         toast.warning(errorMessage);
       } else if (error.response?.status === 401) {
         toast.error(errorMessage);
-      } else  if (error.response?.status === 403) {
-        const errorData = error.response.data;  
+      } else if (error.response?.status === 403) {
+        const errorData = error.response.data;
         // Show specific error message from backend
         toast.error(errorData.message);
         // Optional: Show error details
@@ -129,8 +122,8 @@ const SignIn = () => {
                       id="email"
                       onFocus={() => setFieldTouched("email", false)}
                       className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white dark:border-gray-600 ${errors.email && touched.email
-                          ? "border-red-500"
-                          : "border-gray-300"
+                        ? "border-red-500"
+                        : "border-gray-300"
                         }`}
                     />
                     {errors.email && touched.email && (
@@ -154,16 +147,15 @@ const SignIn = () => {
                         type={showPassword ? "text" : "password"}
                         name="password"
                         id="password"
-                        disabled={!isEmailValid}
+                        // Remove disabled entirely
                         onFocus={() => setFieldTouched("password", false)}
-                        className={`w-full px-4 py-2 pr-10 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white dark:border-gray-600 ${!isEmailValid ? "bg-gray-100 cursor-not-allowed" : ""
-                          } ${errors.password && touched.password
-                            ? "border-red-500"
-                            : "border-gray-300"
-                          }`}
+                        className={`w-full px-4 py-2 pr-10 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white dark:border-gray-600 
+                          ${!isEmailValid ? "bg-gray-100 cursor-not-allowed opacity-50" : ""} 
+                          ${errors.password && touched.password ? "border-red-500" : "border-gray-300"}`}
+                        readOnly={!isEmailValid}  // Optional: prevents typing but allows tab focus
                       />
 
-                      {/* 👁️ Eye Icon */}
+                      {/* Eye Icon */}
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}

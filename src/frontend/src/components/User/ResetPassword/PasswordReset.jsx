@@ -1,7 +1,5 @@
 import React, { useState } from "react";
-import { Formik, Form, Field } from "formik";
-import * as Yup from "yup";
-import { useNavigate, useSearchParams,useLocation } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import axios from "axios";
 import { Eye, EyeOff } from "lucide-react";
 import { toast } from "react-toastify";
@@ -14,42 +12,187 @@ const PasswordReset = () => {
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
   console.log("Password reset token:", token);
-  // 👁️ Password visibility toggles
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const initialValues = {
+  // Form data state
+  const [formData, setFormData] = useState({
     email: emailFromState,
     password: "",
     confirm_password: "",
+  });
+
+  // Error state
+  const [errors, setErrors] = useState({});
+
+  // Password visibility toggles
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Touched state for confirm password
+  const [confirmPasswordTouched, setConfirmPasswordTouched] = useState(false);
+
+  // Submitting state
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Handle input changes
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+
+    setFormData(prev => ({
+      ...prev,
+      [name]: value,
+    }));
+
+    // Clear errors when user types - handle both frontend and backend error keys
+    setErrors(prev => {
+      const newErrors = { ...prev };
+
+      if (name === 'password') {
+        delete newErrors.password;
+        delete newErrors[name];
+      } else if (name === 'confirm_password') {
+        delete newErrors.confirm_password;
+      } else {
+        delete newErrors[name];
+      }
+
+      return newErrors;
+    });
   };
 
-  const ResetPasswordValidationSchema = Yup.object({
-    email: Yup.string().email("Invalid email").required("Email is required"),
-    password: Yup.string()
-      .min(10, "Password must be at least 10 characters")
-      .required("Password is required"),
-    confirm_password: Yup.string()
-      .oneOf([Yup.ref("password")], "Passwords must match")
-      .required("Please re-enter your password"),
-  });
-  const onSubmit = async ({ email, password, confirm_password }, { setSubmitting }) => {
+  // Password match validation
+  const passwordsMatch = formData.password && formData.confirm_password &&
+    formData.password === formData.confirm_password;
+
+  const passwordsDontMatch = formData.password && formData.confirm_password &&
+    formData.password !== formData.confirm_password;
+
+  // Input styling helper - updated to handle both password field errors
+  const getInputStyling = (fieldName) => {
+    // For password field, check both 'password' and fieldName
+    if (fieldName === 'password' && errors.password) {
+      return 'border-red-500 focus:ring-red-500 focus:border-red-500';
+    }
+
+    if (errors[fieldName]) {
+      return 'border-red-500 focus:ring-red-500 focus:border-red-500';
+    }
+
+    return 'border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500';
+  };
+
+  const onSubmit = async (e) => {
+    e.preventDefault();
+
+    // Basic validation - only check if passwords match
+    if (!formData.email) {
+      setErrors({ email: 'Email is required' });
+      return;
+    }
+
+    if (!formData.password) {
+      setErrors({ password: 'Password is required' });
+      return;
+    }
+
+    if (!formData.confirm_password) {
+      setErrors({ confirm_password: 'Please re-enter your password' });
+      return;
+    }
+
+    if (formData.password !== formData.confirm_password) {
+      setErrors({ confirm_password: 'Passwords must match' });
+      return;
+    }
+
+    setIsSubmitting(true);
+
     try {
       const res = await axios.patch(`/api/webuser/password-reset/`, {
-        email,
-        password,
-        confirm_password,
+        email: formData.email,
+        password: formData.password,
+        confirm_password: formData.confirm_password,
       });
-      console.log("first time Password reset response:", res);
+
+      console.log("Password reset response:", res);
+
       if (res.status === 200 || res.status === 201) {
         toast.success(res.data.message || "Password updated successfully!");
         navigate("/signin");
       }
     } catch (error) {
-      console.log(error);
-      toast.error(error.response?.data?.error || "Failed to reset password.");
+      console.error("Password reset error:", error);
+
+      const errorData = error.response?.data;
+
+      if (!errorData) {
+        toast.error("Failed to reset password.");
+        return;
+      }
+
+      let fieldErrors = {};
+
+      // Handle bulk update format (same as UserProfile)
+      if (errorData.failed_updates && Array.isArray(errorData.failed_updates)) {
+        const failedUpdate = errorData.failed_updates[0];
+
+        if (failedUpdate?.errors) {
+          Object.keys(failedUpdate.errors).forEach(field => {
+            if (Array.isArray(failedUpdate.errors[field])) {
+              const errorMessage = failedUpdate.errors[field].join(' ');
+              fieldErrors[field] = errorMessage;
+            }
+          });
+
+          if (Object.keys(fieldErrors).length > 0) {
+            console.log("Setting validation errors from bulk format:", fieldErrors);
+            setErrors(fieldErrors);
+            return;
+          }
+        }
+      }
+
+      // Handle VALIDATION_ERROR format
+      if (errorData.code === "VALIDATION_ERROR" && errorData.errors) {
+        Object.keys(errorData.errors).forEach(field => {
+          if (Array.isArray(errorData.errors[field])) {
+            fieldErrors[field] = errorData.errors[field].join(' ');
+          }
+        });
+
+        if (Object.keys(fieldErrors).length > 0) {
+          console.log("Setting validation errors from VALIDATION_ERROR:", fieldErrors);
+          setErrors(fieldErrors);
+          return;
+        }
+      }
+
+      // Handle plain object errors (fallback)
+      if (typeof errorData === 'object') {
+        Object.keys(errorData).forEach(field => {
+          if (Array.isArray(errorData[field])) {
+            fieldErrors[field] = errorData[field].join(' ');
+          } else if (typeof errorData[field] === 'string') {
+            fieldErrors[field] = errorData[field];
+          }
+        });
+
+        if (Object.keys(fieldErrors).length > 0) {
+          console.log("Setting field errors (fallback):", fieldErrors);
+          setErrors(fieldErrors);
+          return;
+        }
+      }
+
+      // Fallback generic error
+      if (errorData.error) {
+        toast.error(errorData.error);
+      } else if (errorData.message) {
+        toast.error(errorData.message);
+      } else {
+        toast.error("Failed to reset password.");
+      }
     } finally {
-      setSubmitting(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -72,117 +215,128 @@ const PasswordReset = () => {
           </p>
 
           {/* Form */}
-          <Formik
-            initialValues={initialValues}
-            validationSchema={ResetPasswordValidationSchema}
-            onSubmit={onSubmit}
-          >
-            {({ errors, touched, values, isSubmitting, setFieldTouched }) => (
-              <Form>
-                {/* Email Field */}
-                <div className="mb-4">
-                  <label
-                    htmlFor="email"
-                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                  >
-                    Email<span className="text-red-500">*</span>
-                  </label>
-                  <Field
-                    type="email"
-                    name="email"
-                    id="email"
-                    disabled
-                    className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 
-                      dark:bg-gray-700 dark:text-white dark:border-gray-600 bg-gray-100 cursor-not-allowed 
-                      ${errors.email && touched.email ? "border-red-500" : "border-gray-300"}`}
-                  />
-                  {errors.email && touched.email && (
-                    <p className="text-red-500 text-xs mt-1">{errors.email}</p>
-                  )}
-                </div>
+          <form onSubmit={onSubmit}>
+            {/* Email Field */}
+            <div className="mb-4">
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+              >
+                Email<span className="text-red-500">*</span>
+              </label>
+              <input
+                type="email"
+                name="email"
+                id="email"
+                value={formData.email}
+                onChange={handleChange}
+                disabled
+                className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 
+                  dark:bg-gray-700 dark:text-white dark:border-gray-600 bg-gray-100 cursor-not-allowed 
+                  ${errors.email ? "border-red-500" : "border-gray-300"}`}
+              />
+              {errors.email && (
+                <p className="text-red-500 text-xs mt-1">{errors.email}</p>
+              )}
+            </div>
 
-                {/* New Password */}
-                <div className="mb-4">
-                  <label
-                    htmlFor="password"
-                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                  >
-                    New Password<span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <Field
-                      type={showPassword ? "text" : "password"}
-                      name="password"
-                      id="password"
-                      onFocus={() => setFieldTouched("password", false)}
-                      className={`w-full px-4 py-2 pr-10 border rounded-md focus:outline-none focus:ring-2 
-                        focus:ring-blue-500 dark:bg-gray-700 dark:text-white dark:border-gray-600 
-                        ${errors.password && touched.password ? "border-red-500" : "border-gray-300"}`}
-                    />
-                    {/* 👁️ Eye Toggle */}
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-3 flex items-center text-gray-500 
-                        dark:text-gray-300 hover:text-gray-700 dark:hover:text-white focus:outline-none"
-                    >
-                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                  </div>
-                  {errors.password && touched.password && (
-                    <p className="text-red-500 text-xs mt-1">{errors.password}</p>
-                  )}
-                </div>
-
-                {/* Re-enter Password */}
-                <div className="mb-4">
-                  <label
-                    htmlFor="confirm_password"
-                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                  >
-                    Re-enter New Password<span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <Field
-                      type={showConfirmPassword ? "text" : "password"}
-                      name="confirm_password"
-                      id="confirm_password"
-                      onFocus={() => setFieldTouched("confirm_password", false)}
-                      className={`w-full px-4 py-2 pr-10 border rounded-md focus:outline-none focus:ring-2 
-                        focus:ring-blue-500 dark:bg-gray-700 dark:text-white dark:border-gray-600 
-                        ${errors.confirm_password && touched.confirm_password
-                          ? "border-red-500"
-                          : "border-gray-300"}`}
-                    />
-                    {/* 👁️ Eye Toggle */}
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute inset-y-0 right-3 flex items-center text-gray-500 
-                        dark:text-gray-300 hover:text-gray-700 dark:hover:text-white focus:outline-none"
-                    >
-                      {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                  </div>
-                  {errors.confirm_password && touched.confirm_password && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {errors.confirm_password}
-                    </p>
-                  )}
-                </div>
-
-                {/* Submit Button */}
+            {/* New Password */}
+            <div className="mb-4">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+              >
+                New Password<span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  id="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  className={`w-full px-4 py-2 pr-10 border rounded-md focus:outline-none focus:ring-2 
+                    dark:bg-gray-700 dark:text-white ${getInputStyling('password')}`}
+                  placeholder="Enter new password"
+                />
+                {/* 👁️ Eye Toggle */}
                 <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className={`w-full bg-[#6366f1] hover:bg-[#6366f1]/80 text-white font-semibold py-3 rounded-md transition-colors 
-                    ${isSubmitting ? "opacity-60 cursor-not-allowed" : ""}`}
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-3 flex items-center text-gray-500 
+                    dark:text-gray-300 hover:text-gray-700 dark:hover:text-white focus:outline-none"
+                  tabIndex={-1}
                 >
-                  {isSubmitting ? "Resetting..." : "Reset Password"}
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
-              </Form>
-            )}
-          </Formik>
+              </div>
+              {/* Display backend validation errors for password field */}
+              {errors.password && (
+                <p className="text-red-500 text-xs mt-1">{errors.password}</p>
+              )}
+            </div>
+
+            {/* Re-enter Password */}
+            <div className="mb-4">
+              <label
+                htmlFor="confirm_password"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+              >
+                Re-enter New Password<span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  name="confirm_password"
+                  id="confirm_password"
+                  value={formData.confirm_password}
+                  onChange={handleChange}
+                  onBlur={() => setConfirmPasswordTouched(true)}
+                  className={`w-full px-4 py-2 pr-10 border rounded-md focus:outline-none focus:ring-2 
+                    dark:bg-gray-700 dark:text-white ${getInputStyling('confirm_password')}`}
+                  placeholder="Confirm new password"
+                />
+                {/* 👁️ Eye Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute inset-y-0 right-3 flex items-center text-gray-500 
+                    dark:text-gray-300 hover:text-gray-700 dark:hover:text-white focus:outline-none"
+                  tabIndex={-1}
+                >
+                  {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+
+              {/* Password Match Indicator */}
+              {confirmPasswordTouched && formData.password && formData.confirm_password && (
+                <p
+                  className="text-xs mt-1"
+                  style={{
+                    color: passwordsMatch ? "#10B981" : "#EF4444",
+                  }}
+                >
+                  {passwordsMatch ? "✓ Passwords match" : "✗ Passwords do not match"}
+                </p>
+              )}
+
+              {errors.confirm_password && (
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.confirm_password}
+                </p>
+              )}
+            </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={isSubmitting || !passwordsMatch}
+              className={`w-full bg-[#6366f1] hover:bg-[#6366f1]/80 text-white font-semibold py-3 rounded-md transition-colors 
+                ${isSubmitting || !passwordsMatch ? "opacity-60 cursor-not-allowed" : ""}`}
+            >
+              {isSubmitting ? "Resetting..." : "Reset Password"}
+            </button>
+          </form>
         </div>
       </div>
     </div>

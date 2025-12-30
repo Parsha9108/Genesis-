@@ -23,6 +23,9 @@ import { roleApi } from './roleApiSlice';
 // SMTP API SLICE
 import { globalApiSlice } from './globalApiSlice';
 
+//AUDIT LOGS API SLICE
+import { auditLogsApi } from './auditLogsApi';
+
 // Regular reducers
 import notificationReducer from './notificationSlice';
 import userModPermReducer from './userModulePermission';
@@ -47,6 +50,8 @@ const appReducer = combineReducers({
   [roleApi.reducerPath]: roleApi.reducer,
   // SMTP API REDUCER
   [globalApiSlice.reducerPath]: globalApiSlice.reducer,
+  // AUDIT LOGS API REDUCER
+  [auditLogsApi.reducerPath]: auditLogsApi.reducer,
 });
 
 // ROOT REDUCER WITH AUTO-CLEAR LOGIC
@@ -94,6 +99,7 @@ const persistConfig = {
     eventLogFilterApi.reducerPath,
     roleApi.reducerPath,
     globalApiSlice.reducerPath,
+    auditLogsApi.reducerPath,
   ],
   
   throttle: 1000,
@@ -138,6 +144,7 @@ export const store = configureStore({
           eventLogFilterApi.reducerPath,
           roleApi.reducerPath,
           globalApiSlice.reducerPath,
+          auditLogsApi.reducerPath,
         ],
       },
       immutableCheck: {
@@ -152,6 +159,7 @@ export const store = configureStore({
           eventLogFilterApi.reducerPath,
           roleApi.reducerPath,
           globalApiSlice.reducerPath,
+          auditLogsApi.reducerPath,
         ],
       },
     })
@@ -164,7 +172,8 @@ export const store = configureStore({
     .concat(alertFilterApi.middleware)
     .concat(eventLogFilterApi.middleware)
     .concat(roleApi.middleware)
-    .concat(globalApiSlice.middleware),
+    .concat(globalApiSlice.middleware)
+    .concat(auditLogsApi.middleware),
   
   devTools: process.env.NODE_ENV !== 'production' && {
     name: 'Device Management Store',
@@ -218,6 +227,7 @@ if (process.env.NODE_ENV === 'development') {
         eventLogFilter: 'Event Log Filter API cache (not persisted)',
         role: 'Role API cache (not persisted)',
         global: 'GLOBAL API cache (not persisted)',
+        auditLogs: 'Audit Logs API cache (not persisted)',
       }
     });
   });
@@ -235,6 +245,7 @@ export const apis = {
   eventLogFilter: eventLogFilterApi,
   role: roleApi,
   global: globalApiSlice,
+  auditLogs: auditLogsApi,
 };
 
 // Utility function to reset all API caches
@@ -249,5 +260,6 @@ export const resetAllApiCaches = () => {
   store.dispatch(eventLogFilterApi.util.resetApiState());
   store.dispatch(roleApi.util.resetApiState());
   store.dispatch(globalApiSlice.util.resetApiState());
+  store.dispatch(auditLogsApi.util.resetApiState());
   console.log('All API caches reset including role, filter, and SMTP APIs');
 };

@@ -5,8 +5,8 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from django.db import IntegrityError
 from BaseApp.utils import JWTCookieAuthentication
-from ....models import WebUser,Role
-from ....serializer import WebUserSerializer,UserUpdateSerializer
+from BaseApp.models import WebUser,Role
+from BaseApp.serializer import WebUserSerializer
 import logging
 from django.db import transaction
 import uuid
@@ -16,7 +16,6 @@ import datetime
 from urllib.parse import quote # Assume this is a custom email service module
 from BaseApp.utils import check_permission
 from django.utils.decorators import method_decorator
-from django.contrib.auth.hashers import make_password
 from BaseApp.services.webapp_services.email_notifications.Emailtemplates import EmailTemplates
 from BaseApp.services.webapp_services.email_notifications.Sendemail_service import EmailService
 logger = logging.getLogger("agent_monitoring")
@@ -70,22 +69,22 @@ def _track_changes(user, new_data, raw_password=None):
             pass
     
     # Track is_active change
-    if 'is_active' in new_data:
-        new_is_active = bool(new_data['is_active'])
-        if user.is_active != new_is_active:
-            changes['is_active'] = {
-                'old': user.is_active,
+    if 'is_user_enabled' in new_data:
+        new_is_active = bool(new_data['is_user_enabled'])
+        if user.is_user_enabled != new_is_active:
+            changes['is_user_enabled'] = {
+                'old': user.is_user_enabled,
                 'new': new_is_active,
                 'time': change_time
             }
     
     # Track is_email_verified change
-    if 'is_email_enabled' in new_data:
-        new_is_email_enabled = bool(new_data['is_email_enabled'])
-        if user.is_email_enabled != new_is_email_enabled:
+    if 'is_email_override' in new_data:
+        new_is_email_override = bool(new_data['is_email_override'])
+        if user.is_email_override != new_is_email_override:
             changes['is_email_enabled'] = {
-                'old': user.is_email_enabled,
-                'new': new_is_email_enabled,
+                'old': user.is_email_override,
+                'new': new_is_email_override,
                 'time': change_time
             }
     
@@ -121,13 +120,14 @@ class UserManageView(APIView):
         """Enhanced user registration with professional email system"""
 
         try:
+            logger.info("requested user")
             logger.info(f"User registration attempt: {request.data}")
             
             role = request.data.get('role')
             raw_password = request.data.get("password")
-            email_verification_enabled = str(request.data.get('is_email_enabled')).strip().lower() in ['true', '1', 'yes']
-
-            logger.info(f"require_email_enabled={email_verification_enabled}")
+            override_email_verification = str(request.data.get('is_email_override')).strip().lower() in ['true', '1', 'yes']
+            
+            logger.info(f"require_email_enabled={override_email_verification}")
 
             logger.info(f"Requested role: {role}")
 
@@ -140,7 +140,7 @@ class UserManageView(APIView):
                 }, status=status.HTTP_400_BAD_REQUEST)
             
             # Create user with serializer
-            serializer = WebUserSerializer(data=request.data)
+            serializer = WebUserSerializer(data=request.data, context={"request": request})
             
             if not serializer.is_valid():
                 logger.error(f"User validation failed: {serializer.errors}")
@@ -150,21 +150,11 @@ class UserManageView(APIView):
                     'code': 'VALIDATION_ERROR'
                 }, status=status.HTTP_400_BAD_REQUEST)
 
-            # Save user
             user = serializer.save()
             
             
             # Set first-login based on role name (fix comparison)
             role_name = getattr(user.role, 'role_name', None)  # adjust to your Role model field (name/role_name)
-            
-            if role_name in ["Administrator","Global User","Administrator (ReadOnly)"]:
-                user.is_first_login = False
-                logger.info(f"Admin user created: {user.username}")
-            else:
-                user.is_first_login = True
-                logger.info(f"Regular user created: {user.username}")
-            
-            user.save(update_fields=['is_first_login'])
             
             logger.info(f"User saved: {user.username} (Role: {user.role.role_name if user.role else 'None'})")
 
@@ -173,9 +163,9 @@ class UserManageView(APIView):
             email_message = ""
             
          
-            if email_verification_enabled:
+            if override_email_verification==False:
                 token = quote(generate_email_token(user))
-                verify_url = f"https://192.168.100.92/app/verify-email/{token}/"
+                verify_url = f"https://192.168.100.93/app/verify-email/{token}/"
                 logger.info(f"Verification URL generated for {user.username}")
 
                 try:
@@ -201,17 +191,16 @@ class UserManageView(APIView):
                         'uuid': str(getattr(user.role, 'uuid', '')) or None,
                         'role_name': role_name
                     },
-                    'is_first_login': user.is_first_login
                 },
                 'verification': {
-                    'required': email_verification_enabled,
+                    'required': override_email_verification,
                 }
             }
             
             # logger.info(f"Registration completed successfully for {user.username}")
             logger.info(f"Sending response: {response_data}")
 
-            if email_verification_enabled and not email_success:
+            if override_email_verification == False and not email_success:
                 # keep user inactive, but surface a clear warning
                 response_data['warning'] = 'User created but verification email delivery failed'
                 logger.warning(f"User created but email failed for {user.username}: {email_message}")
@@ -234,22 +223,25 @@ class UserManageView(APIView):
      
     # helper to coerce booleans (accepts real bools or strings)
     @method_decorator(check_permission(module='users_management', allowed_action='update'))
-    def patch(self,request):
-       
+    def patch(self, request):
         logger.info(f"Update request data: {request.data}")
         try:
-            # If client sends "ids": [<uuid>, ...] and "role": "<role_uuid>", treat as bulk role assignment
+            # Validate IDs
             ids = request.data.get("id")
             if ids is None:
-                return Response({"error": "'id' is required (string or list of UUIDs)"},
-                                status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"error": "'id' is required (string or list of UUIDs)"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
-            # normalize ids to a list
+            # Normalize ids to a list
             if isinstance(ids, str):
                 ids = [ids]
             elif not isinstance(ids, list):
-                return Response({"error": "Invalid 'id' format - must be string or list"},
-                                status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"error": "Invalid 'id' format - must be string or list"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
             # Build validated UUID list
             valid_ids = []
@@ -260,61 +252,68 @@ class UserManageView(APIView):
                     logger.warning(f"Invalid UUID skipped: {v}")
 
             if not valid_ids:
-              return Response({"error": "No valid UUIDs provided"}, status=status.HTTP_400_BAD_REQUEST)
-  
-            # Validate role exists
+                return Response(
+                    {"error": "No valid UUIDs provided"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+    
+            # Get users
             users_qs = WebUser.objects.filter(id__in=valid_ids)
             users_map = {str(u.id): u for u in users_qs}
 
             missing = [str(i) for i in valid_ids if str(i) not in users_map]
             if missing:
-                # if you prefer to continue, change this to warning and skip those ids
-                return Response({"error": f"Users not found for ids: {missing}"}, status=status.HTTP_404_NOT_FOUND)
+                return Response(
+                    {"error": f"Users not found for ids: {missing}"}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
 
-            # If frontend passes role as UUID, resolve Role object once (if provided)
+            # Validate role if provided
             role_uuid = request.data.get("role")
             role_obj = None
             if role_uuid is not None:
                 try:
-                    # adjust to use uuid or pk depending on your Role model
                     role_obj = Role.objects.get(uuid=role_uuid)
                 except Role.DoesNotExist:
-                    return Response({"error": f"Role not found: {role_uuid}"}, status=status.HTTP_404_NOT_FOUND)
+                    return Response(
+                        {"error": f"Role not found: {role_uuid}"}, 
+                        status=status.HTTP_404_NOT_FOUND
+                    )
 
-           
+            # Prepare shared payload
             shared_payload = request.data.copy()
-            # If is_active and is_email_verified from frontend, convert to serializer fields
-            if "is_active" in shared_payload:
-                shared_payload["is_active"] = bool(shared_payload.pop("is_active"))
-            elif "is_email_enabled" in shared_payload:
-                # change key to model/serializer field name; update if different
-                shared_payload["is_email_enabled"] = bool(shared_payload.pop("is_email_enabled"))
-            elif 'email' in shared_payload:
+            logger.info(f"Shared payload for update: {shared_payload}")
+            
+            if "is_user_enabled" in shared_payload:
+                shared_payload["is_user_enabled"] = bool(shared_payload.pop("is_user_enabled"))
+            if "is_email_override" in shared_payload:
+                shared_payload["is_email_override"] = bool(shared_payload.pop("is_email_override"))
+            if 'email' in shared_payload:
                 shared_payload['email'] = str(shared_payload['email']).strip()
-            elif 'username' in shared_payload:
+            if 'username' in shared_payload:
                 shared_payload['username'] = str(shared_payload['username']).strip()
-            raw_password = None
-            if "password" in shared_payload:
-                raw_password = shared_payload.pop("password")
+            
+            raw_password = shared_payload.pop("password", None)
 
-            # If role resolved, set the actual Role instance (serializer should accept it or role_id)
             if role_obj is not None:
                 shared_payload["role"] = str(role_obj.uuid) if hasattr(role_obj, "uuid") else role_obj.pk
 
-            results = []
+            #  Separate success and error lists
+            successful_updates = []
+            failed_updates = []
+            skipped_updates = []
+
             for uid_str, user in users_map.items():
                 try:
-                    # ✅ Track changes BEFORE updating
+                    # Track changes BEFORE updating
                     changes_dict = _track_changes(user, shared_payload, raw_password)
                     
                     # Check if any changes were made
                     if not changes_dict:
-                        results.append({
+                        skipped_updates.append({
                             "id": uid_str,
                             "username": user.username,
-                            "status": "no_changes",
-                            "message": "No changes detected",
-                            "changes": {}
+                            "reason": "No changes detected"
                         })
                         logger.info(f"No changes for user {uid_str}")
                         continue
@@ -322,115 +321,144 @@ class UserManageView(APIView):
                     # Prepare user-specific payload
                     user_payload = shared_payload.copy()
                     
-                    # Hash password if provided
                     if raw_password:
-                        user_payload["password"] = make_password(raw_password)
-                    
+                        user_payload["password"] = raw_password
+                        user_payload["confirm_password"] =raw_password
                     # Validate and save
-                    serializer = UserUpdateSerializer(user, data=user_payload, partial=True)
-                    
+                    serializer = WebUserSerializer(user,data=user_payload, partial=True,context={"request": request}) 
                     if serializer.is_valid():
                         with transaction.atomic():
                             updated_user = serializer.save()
                         
-                        # ✅ Send email with changes
+                        # Send email
+                        email_status = "not_sent"
+                        email_message = ""
+                        
                         try:
-                            if updated_user.is_email_enabled == True:
-                                if 'is_active' in changes_dict or 'role' in changes_dict or 'password' in changes_dict or 'username' in changes_dict:
-                                    html_content, plain_content,subject = EmailTemplates.send_account_update_email (
+                            if updated_user.is_email_override == False:
+                                if 'is_user_enabled' in changes_dict or 'role' in changes_dict or 'password' in changes_dict or 'username' in changes_dict:
+                                    html_content, plain_content, subject = EmailTemplates.send_account_update_email(
                                         user=updated_user,
                                         changes_dict=changes_dict,
                                     )
                                     
                                     success, message = EmailService.send_email(
-                                        [updated_user.email], html_content, plain_content,subject,
+                                        [updated_user.email], html_content, plain_content, subject,
                                     )
                                     
+                                    email_status = "sent" if success else "failed"
                                     email_message = message
                                 
                                 elif 'email' in changes_dict:
-                                    # Store new email temporarily
                                     new_email = changes_dict['email']['new']
-                                    updated_user.is_email_verified = False  # Mark as unverified
-                                    updated_user.is_active = False  # Suspend account until verified
-                                    updated_user.save() 
-                                    logger.info(f"Pending email set for {user.username}: {new_email}")
+                                    updated_user.is_email_verified = False
+                                    updated_user.is_user_enabled = False
+                                    updated_user.save()
+                                    
                                     token = quote(generate_email_token(updated_user))
-                                    verify_url = f"https://192.168.100.92/app/verify-email/{token}/"
-                                    logger.info(f"🔗 Verification URL generated for {user.username}")
-
-                                    try:
-                                        subject, html_content, plain_content = EmailTemplates.send_email_change_verification(
+                                    verify_url = f"https://192.168.100.93/app/verify-email/{token}/"
+                                    
+                                    subject, html_content, plain_content = EmailTemplates.send_email_change_verification(
                                         user=updated_user,
                                         new_email=new_email,
                                         old_email=changes_dict['email']['old'],
-                                        verification_link=verify_url )
-
-                                        success,message=EmailService.send_email(
-                                           [updated_user.email], html_content, plain_content,subject,
-                                        )
-                                        email_message = message
-                                    except Exception as e:
-                                        logger.error(f"Failed to send verification email: {e}")
+                                        verification_link=verify_url
+                                    )
+                                    
+                                    success, message = EmailService.send_email(
+                                        [updated_user.email], html_content, plain_content, subject,
+                                    )
+                                    
+                                    email_status = "sent" if success else "failed"
+                                    email_message = message
                             else:
-                                email_message = "Email not sent - user email is not enabled."
-
+                                email_status = "disabled"
+                                email_message = "Email notifications disabled for this user"
+                        
                         except Exception as email_error:
                             logger.error(f"Email error for {uid_str}: {email_error}")
                             email_status = "error"
                             email_message = str(email_error)
                         
-                        # Build detailed result with changes
-                        results.append({
+                        # Add to successful updates
+                        successful_updates.append({
                             "id": uid_str,
                             "username": updated_user.username,
                             "email": updated_user.email,
-                            "status": "updated",
-                            "message": f"User {updated_user.username} updated successfully",
+                            "changes": changes_dict,
                             "email_notification": {
-                                "status": "success",
+                                "status": email_status,
                                 "message": email_message
                             }
                         })
                         
-                        logger.info(f"✅ User {uid_str} updated: {list(changes_dict.keys())}")
-                        
+                        logger.info(f" User {uid_str} updated: {list(changes_dict.keys())}")
+                    
                     else:
-                        results.append({
+                        # Add to failed updates - validation error
+                        failed_updates.append({
                             "id": uid_str,
                             "username": user.username,
-                            "status": "validation_error",
-                            "errors": serializer.errors,
-                            "changes": {}
+                            "reason": "Validation failed",
+                            "errors": serializer.errors
                         })
-                        logger.warning(f"❌ Validation error for {uid_str}: {serializer.errors}")
+                        logger.warning(f" Validation error for {uid_str}: {serializer.errors}")
                 
                 except Exception as exc:
-                    logger.error(f"❌ Error updating user {uid_str}: {exc}", exc_info=True)
-                    results.append({
+                    logger.error(f" Error updating user {uid_str}: {exc}", exc_info=True)
+                    #  Add to failed updates - exception
+                    failed_updates.append({
                         "id": uid_str,
                         "username": user.username if user else "unknown",
-                        "status": "error",
-                        "error": str(exc),
-                        "changes": {}
+                        "reason": "Unexpected error",
+                        "error": str(exc)
                     })
-            updated_count = sum(1 for r in results if r.get("status") == "updated")
 
-            return Response({
-                "success": True,
-                "updated_count": updated_count,
-                "results": results
-            }, status=status.HTTP_200_OK)
+            # Build comprehensive response
+            response_data = {
+                "success": len(failed_updates) == 0, 
+                "summary": {
+                    "total_requested": len(valid_ids),
+                    "successful": len(successful_updates),
+                    "failed": len(failed_updates),
+                    "skipped": len(skipped_updates)
+                },
+                "successful_updates": successful_updates,
+                "failed_updates": failed_updates,
+                "skipped_updates": skipped_updates
+            }
+
+            #  Determine HTTP status code
+            if len(successful_updates) > 0 and len(failed_updates) == 0:
+                # All succeeded
+                status_code = status.HTTP_200_OK
+            elif len(successful_updates) > 0 and len(failed_updates) > 0:
+                # Partial success
+                status_code = status.HTTP_207_MULTI_STATUS
+            else:
+                # All failed
+                status_code = status.HTTP_400_BAD_REQUEST
+
+            return Response(response_data, status=status_code)
 
         except Exception as e:
-            return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)    
+            logger.error(f"Unexpected error: {str(e)}", exc_info=True)
+            return Response(
+                {
+                    "success": False,
+                    "error": "An unexpected error occurred",
+                    "details": str(e)
+                }, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     @method_decorator(check_permission(module='users_management', allowed_action='delete'))
     def delete(self, request):
         try:   
             # Extract 'id' field (could be a single ID or a list)
             ids = request.data.get('id')
             logger.info("ids",ids)
-             # ✅ Normalize into a list correctly
+            logger.info("Deleted: %s", request.user)
+             # Normalize into a list correctly
             if isinstance(ids, str):
                 # Single UUID string → wrap in list
                 ids = [ids]
@@ -453,7 +481,7 @@ class UserManageView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # ✅ Perform bulk delete
+            # Perform bulk delete
             users = WebUser.objects.filter(id__in=valid_ids)
             if not users.exists():
                 return Response(
@@ -463,7 +491,8 @@ class UserManageView(APIView):
 
             usernames = list(users.values_list('username', flat=True))
             count = users.count()
-            users.delete()
+            for user_obj in users:
+                user_obj.delete(request=request)
 
             logger.info(f"✅ Deleted {count} user(s): {usernames}")
 

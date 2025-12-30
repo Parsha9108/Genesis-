@@ -14,6 +14,7 @@ from django.utils.decorators import method_decorator
 
 logger = logging.getLogger("agent_monitoring")
 class RolesManageView(APIView):
+    
     permission_classes = [IsAuthenticated]
     authentication_classes= [JWTCookieAuthentication]
 
@@ -42,8 +43,9 @@ class RolesManageView(APIView):
     def post(self, request):
         """Create new role with permissions"""
         try:
-            serializer = RoleCreateUpdateSerializer(data=request.data)
+            serializer = RoleCreateUpdateSerializer(data=request.data,context={'request': request})
             logger.info(f"Creating role with data: {request.data}")
+            
             if serializer.is_valid():
                 role = serializer.save()
                 response_serializer = RoleSerializer(role)
@@ -74,6 +76,7 @@ class RolesManageView(APIView):
     @method_decorator(check_permission(module='rbac', allowed_action='update'))
     def patch(self, request):
         """Partial update of existing role"""
+        logger.info("Inside Update role view")
         uuid = request.data.get('uuid', None)
         if not uuid:
             return Response(
@@ -93,6 +96,7 @@ class RolesManageView(APIView):
             serializer = RoleCreateUpdateSerializer(
                 role,
                 data=request.data,
+                context={'request': request}
             )
             
             if serializer.is_valid():
@@ -147,11 +151,11 @@ class RolesManageView(APIView):
             # Check if role is assigned to users
            
             
-            role.delete()
+            role.delete(request=request)
             
             return Response(
                 {
-                    "message": f"Role '{role_name}' deleted successfully"
+                    "mesrsage": f"Role '{role_name}' deleted successfully"
                 },
                 status=status.HTTP_200_OK
             )

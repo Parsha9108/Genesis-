@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     'channels',
     'oauth2_provider',
     'django_celery_beat',
+    'django_filters',
     'rest_framework',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -239,13 +240,13 @@ DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 HOST_IP = os.environ.get('HOST_IP', 'localhost,192.168.100.91')
 # SECRET_KEY = os.environ.get('SECRET_KEY')
 # Get lists from comma-separated environment variables
-ALLOWED_HOSTS = get_list_from_env('ALLOWED_HOSTS', '192.168.100.91,localhost,127.0.0.1,0.0.0.0,backend')
+ALLOWED_HOSTS = get_list_from_env('ALLOWED_HOSTS','10.99.1.93,localhost,127.0.0.1,0.0.0.0,backend')
 
 CORS_ALLOWED_ORIGINS = get_list_from_env('CORS_ALLOWED_ORIGINS', 
     'https://localhost,http://localhost:3000,https://127.0.0.1,httpS://192.168.100.91')
 
 CSRF_TRUSTED_ORIGINS = get_list_from_env('CSRF_TRUSTED_ORIGINS',
-    'https://localhost,https://127.0.0.1')
+    'https://localhost,https://127.0.0.1,https://10.99.1.93')
 
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = False
@@ -372,6 +373,9 @@ TEMPLATES = [
         },
     },
 ]
+REST_FRAMEWORK = {
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination'
+}
 
 
 OAUTH2_PROVIDER_APPLICATION_MODEL = 'oauth2_provider.Application'

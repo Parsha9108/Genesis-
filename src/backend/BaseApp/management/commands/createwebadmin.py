@@ -54,8 +54,9 @@ class Command(BaseCommand):
                 username=username,
                 email=email,
                 password=make_password(password),
-                is_active=True,
-                is_first_login=False,
+                is_user_enabled=True,
+                is_email_verified = True,
+                is_email_override=True,
             )
             self.stdout.write(self.style.SUCCESS(f'Successfully created web admin user: {username}'))
             

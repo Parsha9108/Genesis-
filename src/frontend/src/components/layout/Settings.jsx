@@ -254,7 +254,7 @@ const Settings = ({ isDarkMode }) => {
                   title: 'Users',
                   description: 'User management and system configuration settings',
                   icon: Users,
-                  path: '/profile/userlist',
+                  path: '/userlist',
                   color: 'blue',
                   features: [
                     'User creation',
@@ -300,42 +300,6 @@ const Settings = ({ isDarkMode }) => {
                 }}
                 colors={getColorClasses("blue")}
               />
-            {/* </RenderIfAllowed> */}
-          <RenderIfAllowed module="users_management" action="read">
-            <SettingOptionCard
-              option={{
-                id: 'users_management',
-                title: 'Users',
-                description: 'User management and system configuration settings',
-                icon: Users,
-                path: '/userlist',
-                color: 'blue',
-                features: [
-                  'User creation',
-                  'User account management',
-                ]
-              }}
-              colors={getColorClasses('blue')}
-            />
-          </RenderIfAllowed>
-
-          <RenderIfAllowed module="global_configuration" action="read">
-            <SettingOptionCard
-              option={{
-                id: 'global_config',
-                title: 'Global Configuration',
-                description: 'Manage system-wide settings including SMTP and Alert configurations.',
-                icon: ServerCog,
-                path: '/global-configuration',
-                color: 'blue',
-                features: [
-                  'SMTP Configuration',
-                  'Alert Configuration'
-                ]
-              }}
-              colors={getColorClasses('blue')}
-            />
-          </RenderIfAllowed>
         </div>
       </div>
 

@@ -43,7 +43,7 @@ class EmailTemplates():
                         <td style="padding: 5px 0;">{user.role}</td>
                     </tr>
                     <tr>
-                        <td style="padding: 5px 0;"><strong>Temporary Password:</strong></td>
+                        <td style="padding: 5px 0;"><strong>Password:</strong></td>
                         <td style="padding: 5px 0; font-family: 'Courier New', monospace; background: #fff; padding: 5px; border: 1px solid #ccc;">{raw_password}</td>
                     </tr>
                     <tr>
@@ -58,7 +58,6 @@ class EmailTemplates():
                 <ul style="margin: 0; padding-left: 20px;">
                     <li>This verification link expires in <strong>15 minutes</strong></li>
                     <li>You must verify your email before logging in</li>
-                    <li>Change your password immediately after first login</li>
                     <li>Keep your credentials secure at all times</li>
                 </ul>
             </div>
@@ -101,14 +100,13 @@ class EmailTemplates():
     Username: {user.username}
     Email: {user.email}
     Role: {user.role}
-    Temporary Password: {raw_password}
+    Password: {raw_password}
     Created: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}
 
     IMPORTANT SECURITY INFORMATION
     -------------------------------
     • This verification link expires in 15 minutes
     • You must verify your email before logging in
-    • Change your password immediately after first login
     • Keep your credentials secure at all times
 
     VERIFICATION LINK
@@ -151,7 +149,7 @@ class EmailTemplates():
         elif len(change_types) == 1 and 'role' in change_types:
             subject = "Account Role Updated"
             main_title = "Role Update"
-        elif len(change_types) == 1 and 'is_active' in change_types:
+        elif len(change_types) == 1 and 'is_user_enabled' in change_types:
             subject = "Account Status Changed"
             main_title = "Status Update"
         else:
@@ -188,9 +186,9 @@ class EmailTemplates():
             """
             changes_plain += f"  Role: {old_role} → {new_role}\n"
         
-        if 'is_active' in changes_dict:
-            old_status = "Active" if changes_dict['is_active'].get('old') else "Inactive"
-            new_status = "Active" if changes_dict['is_active'].get('new') else "Inactive"
+        if 'is_user_enabled' in changes_dict:
+            old_status = "Active" if changes_dict['is_user_enabled'].get('old') else "Inactive"
+            new_status = "Active" if changes_dict['is_user_enabled'].get('new') else "Inactive"
             changes_html_rows += f"""
                 <tr>
                     <td style="padding: 5px 0;"><strong>Account Status:</strong></td>
@@ -226,7 +224,7 @@ class EmailTemplates():
         # Security notice for sensitive changes
         security_notice = ""
         security_notice_plain = ""
-        if 'password' in changes_dict or 'is_active' in changes_dict:
+        if 'password' in changes_dict or 'is_user_enabled' in changes_dict:
             security_notice = """
                 <div style="background-color: #fff9e6; border-left: 4px solid #ffa500; padding: 15px; margin: 20px 0;">
                     <p style="margin: 0 0 10px 0;"><strong>Security Alert:</strong></p>
@@ -297,7 +295,7 @@ class EmailTemplates():
                     </tr>
                     <tr>
                         <td style="padding: 5px 0;"><strong>Account Status:</strong></td>
-                        <td style="padding: 5px 0;">{'Active' if user.is_active else 'Inactive'}</td>
+                        <td style="padding: 5px 0;">{'Active' if user.is_user_enabled else 'Inactive'}</td>
                     </tr>
                     <tr>
                         <td style="padding: 5px 0;"><strong>Email Verified:</strong></td>
@@ -343,7 +341,7 @@ class EmailTemplates():
     Username: {user.username}
     Email: {user.email}
     Role: {user.role if hasattr(user, 'role') else 'N/A'}
-    Account Status: {'Active' if user.is_active else 'Inactive'}
+    Account Status: {'Active' if user.is_user_enabled else 'Inactive'}
     Email Verified: {'Yes' if user.is_email_verified else 'No'}
 
 

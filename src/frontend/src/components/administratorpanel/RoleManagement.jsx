@@ -353,7 +353,7 @@ const RoleManagement = ({ isDarkMode = false }) => {
             </p>
           </div>
         ) : (
-          <div className="relative overflow-auto custom-scroll" style={{ maxHeight: "530px" }}>
+          <div className="relative overflow-auto custom-scroll pb-4" style={{ maxHeight: "530px" }}>
             <table className="min-w-full table-fixed border-separate border-spacing-0">
               <thead
                 className="sticky top-0 z-10"

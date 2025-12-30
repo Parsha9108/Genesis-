@@ -43,7 +43,7 @@ const CpuIO = lazy(() => import('./components/applicationResourcemonitoring/CpuI
 const SettingsPage = lazy(() => import('./components/layout/Settings'));
 
 //Audit Logs
-const AuditLogs = lazy(() => import('./components/administratorpanel/AuditLogs'));
+const AuditLogs = lazy(() => import('./components/Audit_logs/AuditLogs'));
 
 //globalConfig page
 const GlobalConfiguration = lazy(()=>import('./components/administratorpanel/GlobalConfigWrapper'));

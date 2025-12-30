@@ -1,10 +1,16 @@
 from django.urls import path
 from .views import *
 from .services.webapp_services.user_management.user_details import *
+from .services.webapp_services.user_register_login_services.webuser_login_logout import web_user_login_view,web_user_logout_view
+from .services.webapp_services.user_register_login_services.webuser_username_email_validation import check_username,check_email
+from .services.webapp_services.user_register_login_services.send_email_and_verify_to_reset_password import sendemail_to_reset_password,verify_reset_password_token
 from .services.webapp_services.user_management.user_roles import RolesManageView
 from .services.webapp_services.user_management.UserManageView import UserManageView
 from .services.webapp_services.global_config.global_config_view import GlobalConfigView
 from .services.webapp_services.email_notifications.smtp_test_config import test_email_configuration
+from .services.webapp_services.audit_logs.audit_logs_view import get_audit_logs,get_audit_log_filters,download_audit_logs
+
+
 # from .services.webapp_services.user_management.UserManageView import updatepassword
 urlpatterns =[
     path('onboard/',agent_onboard_view,name='agent_view'),
@@ -15,16 +21,16 @@ urlpatterns =[
     path('get/jwt/access_token/',refresh_access_token_view,name="get_access_token"),
     path('bridge/',agent_monitroing_view,name="agent_monitoring"),
 
-    path('signup/check-email/',email_validation, name='check-email'),
-    path('signup/check-username/', username_validatuion_view, name='check-username'),
-    path('register/reset-password/', sendemail_to_resetpassword_view, name='send-reset-password'),
-    path('register/verify-reset-passowrd-token/', verify_reset_password_view, name='verify-email'),
+    path('signup/check-email/',check_email, name='check-email'),
+    path('signup/check-username/', check_username, name='check-username'),
+    path('register/reset-password/', sendemail_to_reset_password, name='send-reset-password'),
+    path('register/verify-reset-passowrd-token/', verify_reset_password_token, name='verify-email'),
     path("password-reset/", update_password_view, name="password-reset"),
     path('register/verify-email/<str:token>/', verify_email_view, name='verify-email'),
     path('signin/', web_user_login_view, name='login'),
 
     path('get/logged-in-user-details/', get_logged_in_user_details, name='get-logged-in-user-details'),
-    path('logout/', logout, name='logout'), 
+    path('logout/', web_user_logout_view, name='logout'), 
     
     path('devicedata/',all_devicedata_view, name='all_devicedata'),
     path('device/<uuid:uuid>/', get_device_by_uuid_view, name='get_device_by_uuid'),
@@ -63,10 +69,7 @@ urlpatterns =[
     path("flagged_storage_devices/", flagged_storage_view, name="flagged-storage"),
     path("flagged_ports/", flagged_port_view, name="flagged-network-ports"),
     
-    #user permissions
-    path("get_available_permissions/",get_availabe_permissions_view, name="get_available_permissions"),
-    path("get_user_permissions/<uuid:userId>/",get_user_permissions_view, name="get_user_permissions"),
-    path("update_user_permissions/<uuid:userId>/", update_user_permissions_view, name="update_user_permissions"),
+    
     #alert filter 
     path('alerts/filtered/', filtered_alerts_view, name='filtered-alerts'),
     path('alerts/filter-options/', alert_filter_options_view, name='alert-filter-options'),
@@ -93,6 +96,11 @@ urlpatterns =[
     # GlobalConfigView
     path('globalconfig/',GlobalConfigView.as_view(),name='config'),
 
-    path('test-smtp-config/', test_email_configuration,name='test-smtp-config')
+    path('test-smtp-config/', test_email_configuration,name='test-smtp-config'),
+
+    #audit_logs
+    path('get_auditlogs/',get_audit_logs,name="audit_logs"),
+    path('get_filter_options/',get_audit_log_filters,name="filter_options"),
+    path('audit_logs/download/', download_audit_logs, name='audit-logs-download'),
 
 ]

@@ -8,13 +8,13 @@ import jwt
 import logging
 from ..email_notifications.Emailtemplates import EmailTemplates
 from ..email_notifications.Sendemail_service import EmailService
+from BaseApp.serializer import WebUserSerializer
 logger=logging.getLogger('agent_monitoring')
 def update_password(request):
     try:
-       
         token = request.query_params.get('token')
         password = request.data.get('password')
-        email = request.data.get('email')
+        confirm_password = request.data.get('confirm_password')
         
         if token:
             # Token based flow (forgot password)
@@ -28,24 +28,22 @@ def update_password(request):
                 return Response({'error': 'Token has expired'}, status=status.HTTP_400_BAD_REQUEST)
             except (jwt.InvalidTokenError, WebUser.DoesNotExist):
                 return Response({'error': 'Invalid token or user'}, status=status.HTTP_400_BAD_REQUEST)
-
-        elif email:
-            logger.info(f"First-time password set for email: {email}")
-            # First-time password set flow (no token, use email)
-            try:
-                user = WebUser.objects.get(email=email)
-                # (Optionally) check user.is_first_login is True here, if required
-            except WebUser.DoesNotExist:
-                return Response({'error': 'Invalid user'}, status=status.HTTP_400_BAD_REQUEST)
         else:
-            return Response({'error': 'Token or email required'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Token required'}, status=status.HTTP_400_BAD_REQUEST)
 
         if not password:
             return Response({'error': 'New password is required'}, status=status.HTTP_400_BAD_REQUEST)
-        
+        data= {
+            'password': password,
+            'confirm_password': confirm_password
+        }
+        serializer=WebUserSerializer(user,data=data,partial=True,context={'request': request})
         logger.info(f"Updating password for user ID: {user.username}")
-        user.password = make_password(password)
-        user.save()
+        if not serializer.is_valid():
+            logger.error(f"Password update validation failed: {serializer.errors}")
+            return Response({'error': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        serializer.save()
+    
         change_time = datetime.now().strftime('%B %d, %Y at %I:%M %p')
 
         # Track password change
@@ -62,9 +60,6 @@ def update_password(request):
         success, message = EmailService.send_email([user.email], html_content, plain_content,subject)
 
         # (Optionally) if user.is_first_login: set to False after first password set
-        if hasattr(user, 'is_first_login') and user.is_first_login:
-            user.is_first_login = False
-            user.save(update_fields=["is_first_login"])
 
         if success:
          return Response({'message': 'Password updated successfully'}, status=status.HTTP_200_OK)

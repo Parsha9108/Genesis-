@@ -6,19 +6,9 @@ from BaseApp.services.agent_monitoring.disk_partition_patch import updation_unkn
 from BaseApp.services.agent_monitoring.networkport_patch import updation_unknown_networkport
 
 
-from BaseApp.services.webapp_services.user_register_login_services.webuser_login import login_web_user
 from BaseApp.services.webapp_services.user_register_login_services.send_email_to_verify_webuser import sendemail_to_verify_user
-from BaseApp.services.webapp_services.user_register_login_services.send_email_to_reset_password import sendemail_to_reset_password
 from BaseApp.services.webapp_services.user_register_login_services.webuser_password_update import update_password
-from BaseApp.services.webapp_services.user_register_login_services.webuser_email_validation import check_email
-from BaseApp.services.webapp_services.user_register_login_services.webuser_username_validation import check_username
-from BaseApp.services.webapp_services.user_register_login_services.verify_reset_password_token import verify_reset_password_token
 
-from BaseApp.services.webapp_services.user_register_login_services.webuser_logout import logout_view
-
-from BaseApp.services.webapp_services.user_permissions.get_assigned_permissions import get_user_permissions
-from BaseApp.services.webapp_services.user_permissions.get_available_permissions import get_available_permissions
-from BaseApp.services.webapp_services.user_permissions.update_user_permissions import update_user_permissions
 
 from BaseApp.services.webapp_services.get_all_device_details import get_all_device_details, get_device_by_uuid
 from BaseApp.services.webapp_services.cpu_utilization_service import cpu_utilization
@@ -48,22 +38,15 @@ from BaseApp.services.webapp_services.alert_filter_services.unread_alerts_count 
 from BaseApp.services.webapp_services.eventlogs_filter_services.filter_events_by_custom import filtered_eventlogs_by_custom_range
 from BaseApp.services.webapp_services.eventlogs_filter_services.filter_events_by_option import filtered_events_by_option
 
-from rest_framework.decorators import api_view, permission_classes,throttle_classes,authentication_classes
+from rest_framework.decorators import api_view, permission_classes,authentication_classes
 from rest_framework.permissions import AllowAny
-import re
-from datetime import datetime, timedelta, date
-from django.utils import timezone
-from django.utils.timezone import now
-from rest_framework.throttling import UserRateThrottle
 from django.core.cache import cache
 import logging
 from rest_framework.response import Response
 from asgiref.sync import async_to_sync
 from django.views.decorators.csrf import csrf_exempt
-from django.shortcuts import get_object_or_404
 from django.http import JsonResponse
-from django.utils.timezone import now, localtime
-from BaseApp.models import CPU, Storage, Memory,MemoryMonitoring,PendingDeletion
+from BaseApp.models import PendingDeletion
 # cpu stats service imports
 from BaseApp.services.webapp_services.stats.cpu_stats_services.cpu_minutely_stats import cpu_minutely_stats
 from BaseApp.services.webapp_services.stats.cpu_stats_services.cpu_hourly_stats import cpu_hourly_stats
@@ -91,7 +74,6 @@ from BaseApp.services.webapp_services.stats.disk_stats_services.disk_custom_rang
 # views.py
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 
 # Custom Imports
@@ -143,34 +125,9 @@ def handle_unknown_disk_partition_view(request,device_uuid):
 def handle_unknown_networkport_view(request,device_uuid):
     return updation_unknown_networkport(request,device_uuid)
        
-   
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def web_user_login_view(request):
-    return  login_web_user(request)
 
-
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def email_validation(request):
-    return  check_email(request)
-
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def username_validatuion_view(request):
-    return  check_username(request)
-
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def sendemail_to_resetpassword_view(request):
-    return sendemail_to_reset_password(request)
-
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def verify_reset_password_view(request):
-    return verify_reset_password_token(request)
-    
 @api_view(['PATCH'])
+@authentication_classes([])
 @permission_classes([AllowAny])
 def update_password_view(request):
     """Function to update the password of a user."""
@@ -182,12 +139,6 @@ def verify_email_view(request,token):
     return sendemail_to_verify_user(request, token)  # Assuming this function handles email verification as well
 
 
-
-@api_view(['POST'])
-@authentication_classes([JWTCookieAuthentication])
-@permission_classes([IsAuthenticated])
-def logout(request):
-   return logout_view(request)  # Assuming this function handles user logout logic
 
 @api_view(['GET'])
 @authentication_classes([JWTCookieAuthentication])
@@ -219,23 +170,7 @@ def memory_utilization_view(request, uuid):
 def network_utilization_view(request, uuid):
     return network_utilization(request, uuid)  # Assuming this function retrieves network utilization data
 
-@api_view(['GET'])
-@authentication_classes([JWTCookieAuthentication])
-@permission_classes([IsAuthenticated])  
-def get_availabe_permissions_view(request):
-    return get_available_permissions(request)     
 
-@api_view(['GET'])      
-@authentication_classes([JWTCookieAuthentication])
-@permission_classes([IsAuthenticated])
-def get_user_permissions_view(request, userId):
-    return get_user_permissions(request, userId)
-
-@api_view(['POST'])
-@authentication_classes([JWTCookieAuthentication])
-@permission_classes([IsAuthenticated])
-def update_user_permissions_view(request, userId):
-    return update_user_permissions(request, userId)  
 
 @api_view(['POST'])
 @authentication_classes([JWTCookieAuthentication])
