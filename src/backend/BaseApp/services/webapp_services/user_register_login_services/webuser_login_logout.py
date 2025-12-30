@@ -89,7 +89,7 @@ def web_user_login_view(request):
         }, status=status.HTTP_403_FORBIDDEN)
  
     user.last_login = datetime.datetime.now()
-    # user.save()
+    user.save()
 
     token = generate_jwt(user)
     response_data = {}
