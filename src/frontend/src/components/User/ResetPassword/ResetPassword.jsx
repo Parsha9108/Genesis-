@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Formik, Form, Field } from "formik";
 import * as Yup from "yup";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import axios from "axios";
+import backendApi from "../../../api/backendAxiosInstance";
 import { toast } from "react-toastify";
 import { Eye, EyeOff, XCircle } from "lucide-react";
 import GenesisLogoCard from "../GenesisLogoCard";
@@ -24,8 +24,8 @@ const ResetPassword = () => {
   useEffect(() => {
     const verifyToken = async () => {
       try {
-        const res = await axios.get(
-          `/api/webuser/register/verify-reset-passowrd-token/?token=${encodeURIComponent(token)}`
+        const res = await backendApi.get(
+          `/register/verify-reset-passowrd-token/?token=${encodeURIComponent(token)}`
         );
 
         if (res.status === 200 && res.data.valid) {

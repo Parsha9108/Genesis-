@@ -2,13 +2,13 @@ import { Formik, Form, Field } from "formik";
 import SignValidationSchema from "./SignInValidationSchema";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
-import axios from "axios";
+import backendApi from "../../../api/backendAxiosInstance";
 import { toast } from "react-toastify";
 import ReCaptcha from "react-google-recaptcha";
 import { useAuth } from "../../../Contexts/AuthContext";
-import { useDispatch } from "react-redux"; // Added this
-import { setPermissions } from "../../../redux/userModulePermission"; // Added this
-import { useRef, useState } from "react";
+import {useRef,useState} from "react";
+import { useDispatch } from "react-redux"; 
+import { setPermissions } from "../../../redux/userModulePermission";
 import { useDocumentTitle } from "../../../Hooks/useDocumentTitle";
 import GenesisLogoCard from "../GenesisLogoCard";
 
@@ -27,7 +27,7 @@ const SignIn = () => {
 
   const onSubmit = async (values, { setSubmitting, resetForm }) => {
     try {
-      const res = await axios.post("/api/webuser/signin/", values, {
+      const res = await backendApi.post("/signin/", values, {
         withCredentials: true,
       });
       console.log("Login response:", res);
@@ -39,8 +39,8 @@ const SignIn = () => {
 
       // Added this to fecth the permissions 
       try {
-        const permResponse = await axios.get(
-          "/api/webuser/modules/permissions/all",
+        const permResponse = await backendApi.get(
+          "/modules/permissions/all",
           {
             withCredentials: true,
           }

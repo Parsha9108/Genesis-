@@ -7,7 +7,7 @@ import { useDocumentTitle } from "../../Hooks/useDocumentTitle";
 import { useGetUserPermissionsQuery } from '../../redux/permissionApiSlice';
 import { useAuth } from '../../Contexts/AuthContext';
 import { toast } from 'react-toastify';
-import axios from 'axios';
+import backendApi from '../../api/backendAxiosInstance';
 import { useDispatch } from 'react-redux';
 import { setPermissions } from '../../redux/userModulePermission';
 
@@ -39,8 +39,8 @@ const Settings = ({ isDarkMode }) => {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      const permResponse = await axios.get(
-        "/api/webuser/modules/permissions/all",
+      const permResponse = await backendApi.get(
+        "/modules/permissions/all",
         {
           withCredentials: true,
         }

@@ -211,9 +211,7 @@ class Agent(models.Model):
         
         try:
         # Optionally end active session if you’re tracking it
-            from BaseApp.services.agent_monitoring.monitoring_sessionservice import MonitoringSessionService
-            MonitoringSessionService.end_session(agent=self)
-
+          pass
         except Exception as session_err:
             print(f"Warning: Could not end session: {session_err}")
         
@@ -635,6 +633,32 @@ class NetworkPortMonitoring(models.Model):
         return f"Networkport monitoring for NIC-{self.port.nic.uuid}"
 
 
+class WebUser(BaseAuditModel):
+
+    AUDIT_IGNORE_FIELDS = ["is_email_verified", "date_joined","last_login","is_email_override"]
+    role = models.ForeignKey(Role, on_delete=models.PROTECT, null=True)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    username = models.CharField(max_length=100, unique=True)
+    password = models.CharField(max_length=128)
+    email = models.EmailField(unique=True)
+    is_user_enabled = models.BooleanField(default=True)
+    date_joined = models.DateTimeField(auto_now_add=True)
+    last_login = models.DateTimeField(null=True, blank=True)
+    is_email_verified = models.BooleanField(default=False)
+    is_email_override = models.BooleanField(default=False)
+    # Helper methods for role checking
+    @property
+    def is_authenticated(self):
+        return True
+ 
+    @classmethod
+    def get_available_roles(cls):
+        """Get all unique roles currently in use"""
+        return cls.objects.values_list('role', flat=True).distinct().order_by('role')
+    
+    def __str__(self):
+        return f"{self.username} ({self.role})"
+    
 class Alert(models.Model):
     SEVERITY_CHOICES = [
         ('Info', 'Info'),
@@ -651,7 +675,7 @@ class Alert(models.Model):
     
     agent = models.ForeignKey(Agent, on_delete=models.CASCADE, related_name='alerts')
     uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    device_name = models.CharField(max_length=100) 
+    device_name = models.CharField(max_length=100)  
     alert_type = models.CharField(max_length=50, choices=ALERT_TYPE_CHOICES)
     severity = models.CharField(max_length=20, choices=SEVERITY_CHOICES)
     source_uuid = models.CharField(max_length=100)  
@@ -659,60 +683,15 @@ class Alert(models.Model):
     checkpoint = models.ForeignKey(MonitoringCheckpoint, on_delete=models.CASCADE, related_name='alerts')
     details = models.TextField() 
     created_at = models.DateTimeField(default=timezone.now)
-    is_read = models.BooleanField(default=False) 
+    is_read=models.BooleanField(default=False)
 
     class Meta:
+        db_table = 'alerts'
         ordering = ['-created_at']
 
     def __str__(self):
         return f"[{self.severity.upper()}] {self.alert_type} - {self.source_uuid}"
     
-    def mark_as_read(self):
-        """Mark this alert as read."""
-        self.is_read = True
-        self.save(update_fields=['is_read'])
-    
-    def mark_as_unread(self):
-        """Mark this alert as unread."""
-        self.is_read = False
-        self.save(update_fields=['is_read']) 
-          
-class MonitoringSession(models.Model):
-    agent = models.OneToOneField(Agent, on_delete=models.CASCADE, related_name="active_session")
-    event = models.OneToOneField(Event, on_delete=models.CASCADE)
-    started_at = models.DateTimeField(auto_now_add=True)
-    ended_at = models.DateTimeField(null=True, blank=True)
-
-    def is_active(self):
-        return self.ended_at is None
-    
-
-class WebUser(BaseAuditModel):
-
-    AUDIT_IGNORE_FIELDS = ["is_email_verified", "date_joined","last_login","is_email_override"]
-    role = models.ForeignKey(Role, on_delete=models.PROTECT, null=True)
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    username = models.CharField(max_length=100, unique=True)
-    password = models.CharField(max_length=128)
-    email = models.EmailField(unique=True)
-    is_user_enabled = models.BooleanField(default=True)
-    date_joined = models.DateTimeField(auto_now_add=True)
-    last_login = models.DateTimeField(null=True, blank=True)
-    is_email_verified = models.BooleanField(default=False)
-    is_email_override = models.BooleanField(default=False)
-    @property
-    def is_authenticated(self):
-        return True
- 
-    @classmethod
-    def get_available_roles(cls):
-        """Get all unique roles currently in use"""
-        return cls.objects.values_list('role', flat=True).distinct().order_by('role')
-    
-    def __str__(self):
-        return f"{self.username} ({self.role})"
-
-
 class Group(models.Model):
     user = models.ForeignKey(WebUser, on_delete=models.CASCADE,related_name="webuser")
     group_id=models.CharField(max_length=200)

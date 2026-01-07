@@ -12,6 +12,9 @@ class Command(BaseCommand):
         'monitoring.diskThreshold': '90',
         'monitoring.networkThreshold': '80',
         'monitoring.repeatFrequency': '5',
+        'monitoring.ip_ping_interval':'60',
+        'monitoring.ip_ping_count':'2',
+        'monitoring.ip_ping_timeout':'4'     
     }
 
     def add_arguments(self, parser):

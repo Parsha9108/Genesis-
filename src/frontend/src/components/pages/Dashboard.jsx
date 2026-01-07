@@ -1,4 +1,4 @@
-import { lazy, Suspense,useState,useEffect } from 'react';
+import { lazy, Suspense } from 'react';
 
 // Lazy load heavy components
 const MetricsOverview = lazy(() => import('../MetricsOverview'));
@@ -10,48 +10,40 @@ const DonutChart = lazy(() => import('../charts/DonutChart'));
 import { useGetDevicesdataQuery } from "../../redux/apiSlice"
 import { useDocumentTitle } from '../../Hooks/useDocumentTitle';
 
-const Dashboard = ({ isDarkMode,activeAgents }) => {
+const Dashboard = ({ isDarkMode, activeAgents }) => {
   useDocumentTitle('Dashboard');
   const { data, isLoading, error } = useGetDevicesdataQuery();
-  
-// const [activeDevicesCount, setActiveDevicesCount] = useState(0);
-// const [inactiveDevicesCount, setInactiveDevicesCount] = useState(0);
 
-const device = Array.isArray(data?.device) ? data.device : [];
+// Access results array, not device
+  const device = Array.isArray(data?.results) ? data.results : [];
 
-let vmCount = 0;
-let pmCount = 0;
-let activeCount = 0;
-let inactiveCount = 0;
+  let vmCount = 0;
+  let pmCount = 0;
+  let activeCount = 0;
+  let inactiveCount = 0;
 
-device.forEach((d) => {
-  const type = d?.device?.dev_phy_vm;
-  const status = d?.status;
+  // Safely access nested device properties
+  device.forEach((d) => {
+    const type = d?.device?.dev_phy_vm;
+    const status = d?.status;
 
-  if (type === 'Virtual Machine') {
-    vmCount++;
-  } else if (type === 'Physical Machine') {
-    pmCount++;
-  }
+    if (type === 'Virtual Machine') {
+      vmCount++;
+    } else if (type === 'Physical Machine') {
+      pmCount++;
+    }
 
-  if (status === 'Active') {
-    activeCount++;
-  } else {
-    inactiveCount++;
-  }
-});
-
- 
- 
+    if (status === 'Active') {
+      activeCount++;
+    } else if (status === 'Inactive') {
+      inactiveCount++;
+    }
+  });
 
   if (isLoading) return <div className="p-4 text-center">Loading dashboard...</div>;
- 
+  if (error) return <div className="p-4 text-center text-red-500">Error loading dashboard data</div>;
 
   const dashboardData = {
-    totalDevices: 121,
-    activeDevices: 70,
-    inactiveDevices: 51,
-    recentAlerts: 12,
     memoryUsage: [
       { time: '00:00', usage: 45 },
       { time: '04:00', usage: 52 },
@@ -66,73 +58,23 @@ device.forEach((d) => {
       { id: 'S_P2', value: 75 },
       { id: 'S_P3', value: 85 },
       { id: 'S_P4', value: 25 }
-    ],
-    alerts: [
-      {
-        time: '2025-06-24T10:30:12Z',
-        component: 'CPU',
-        severity: 'Warning',
-        description: 'High CPU usage',
-        device: 'WS-21'
-      },
-      {
-        time: '2025-06-24T10:31:12Z',
-        component: 'Memory',
-        severity: 'Critical',
-        description: 'Memory threshold crossed',
-        device: 'DB-04'
-      },
-      {
-        time: '2025-06-24T10:32:12Z',
-        component: 'Storage',
-        severity: 'Info',
-        description: 'Disk check complete',
-        device: 'SS-21'
-      },
-      {
-        time: '2025-06-24T10:33:12Z',
-        component: 'Network',
-        severity: 'Warning',
-        description: 'Network spike detected',
-        device: 'WB-04'
-      }
-    ],
-    eventLogs: [
-      {
-        time: '10m 16s ago',
-        type: 'CONNECTION',
-        component: 'WebSocket',
-        description: 'WebSocket connection established'
-      },
-      {
-        time: '10m 16s ago',
-        type: 'MONITORING',
-        component: 'Partition C:',
-        description: 'Partition used space increased'
-      },
-      {
-        time: '10m 16s ago',
-        type: 'UPDATE',
-        component: 'Partition C:',
-        description: 'Partition used space increased'
-      }
-    ],
-    deviceTypes: {
-   
-      VMS: 70,
-      Physicals: 10,
-    
-    }
+    ]
   };
+
   const deviceTypes = {
-  VMS: vmCount,
-  Physicals: pmCount,
-};
+    VMS: vmCount,
+    Physicals: pmCount,
+  };
 
   return (
     <div className="space-y-6">
       <Suspense fallback={<div className="p-4 text-center">Loading dashboard overview...</div>}>
-        <MetricsOverview data={device} isDarkMode={isDarkMode} activeDevicesCount={activeCount} inactiveDevicesCount={inactiveCount}/>
+        <MetricsOverview 
+          data={data?.results || []} 
+          isDarkMode={isDarkMode} 
+          activeDevicesCount={activeCount} 
+          inactiveDevicesCount={inactiveCount}
+        />
       </Suspense>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -162,21 +104,17 @@ device.forEach((d) => {
         </Suspense>
         <Suspense fallback={<div className="p-4 text-center">Loading alerts...</div>}>
           <AlertsTable
-            alerts={
-              device
-                .flatMap((dev) => dev.monitoring_data?.alerts || [])
-            }
+            alerts={device.flatMap((dev) => dev.monitoring_data?.alerts || [])}
             isDarkMode={isDarkMode}
           />
-
         </Suspense>
       </div>
 
       <Suspense fallback={<div className="p-4 text-center">Loading event logs...</div>}>
-        <EventLogs eventLogs={
-              device
-                .flatMap((dev) => dev.monitoring_data?.events || [])
-            } isDarkMode={isDarkMode} />
+        <EventLogs 
+          eventLogs={device.flatMap((dev) => dev.monitoring_data?.events || [])} 
+          isDarkMode={isDarkMode} 
+        />
       </Suspense>
     </div>
   );

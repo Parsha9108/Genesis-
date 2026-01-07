@@ -6,10 +6,13 @@ import {
   useLazyGetFilterOptionsQuery,
   useLazyExportAuditLogsQuery,
 } from "../../redux/auditLogsApi";
+import { RefreshCw, Download } from "lucide-react"; 
+import SearchBar from "../SearchBar"; 
 import DataTableUI from "../DataTableUI";
 import AuditLogModal from "./AuditLogModal";
 import FilterDropdown from "./FilterDropdown";
 import "../../components/index.css";
+import ActionButtons from "../ActionButtons";
 
 const AuditLogs = ({ isDarkMode = false }) => {
   /* -------------------- CONSTANTS -------------------- */
@@ -289,53 +292,98 @@ const AuditLogs = ({ isDarkMode = false }) => {
     Object.values(appliedFilters).some(Boolean) || Boolean(debouncedSearchTerm);
 
   /* -------------------- RENDER -------------------- */
-  return (
-    <div className="space-y-6">
-      <DataTableUI
-        data={logs}
-        loading={isLoading}
-        error=""
-        totalCount={totalCount}
-        title="Audit Logs"
-        tableHeaders={TABLE_HEADERS}
-        tableHeight="550px"
-        isDarkMode={isDarkMode}
-        severityColors={SEVERITY_COLORS}
-        filters={appliedFilters}
-        filterConfig={filterConfig}
-        filterOptions={filterOptions}
-        hasActiveFilters={hasActiveFilters}
-        onFiltersChange={handleFiltersChange}
-        FilterComponent={FilterDropdown}
-        onFilterOptionsLoad={handleFilterOptionsLoad}
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={handlePageChange}
-        onRowClick={handleRowClick}
-        onRetry={refetch}
-        renderCell={renderCell}
-        itemsPerPage={itemsPerPage}
-        itemsPerPageOptions={itemsPerPageOptions}
-        onItemsPerPageChange={handleItemsPerPageChange}
-        headerTitle="Audit Logs"
-        headerCountLabel={`${totalCount} logs`}
-        onRefresh={handleRefresh}
-        isRefreshing={isFetching}
-        showSearch={true}
-        searchTerm={searchTerm}
-        onSearchChange={(val) => setSearchTerm(val)}
-        showDownload={true}
-        onDownload={handleDownload}
-      />
+return (
+  <div className="space-y-6">
+    {/* Header Row: Left (Title + Refresh + Count) | Right (Search + Download) */}
+    <div className="flex items-center justify-between gap-4">
+      
+      {/* Left Side: Title + Refresh Button + Count */}
+      <div className="flex items-center gap-3">
+        <span 
+          className="text-base sm:text-lg font-semibold" 
+          style={{ color: isDarkMode ? '#FFF' : '#525759' }}
+        >
+          Audit Logs
+        </span>
 
-      <AuditLogModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        log={selectedLog}
-        isDarkMode={isDarkMode}
-      />
+        {/* ActionButtons for Refresh */}
+        <ActionButtons
+          onRefresh={handleRefresh}
+          isRefreshing={isFetching ?? false}
+          isDarkMode={isDarkMode}
+          refreshButtonTitle="Refresh Audit Logs"
+          refreshIcon={RefreshCw}
+        />
+
+        <span 
+           className="inline-flex items-center justify-center px-2 py-1 rounded-full
+             text-sm font-semibold leading-none
+             bg-blue-500/10 text-blue-500" >
+          {totalCount} logs
+        </span>
+      </div>
+
+      {/* Right Side: SearchBar + Download Button */}
+      <div className="flex items-center gap-3">
+        <SearchBar
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Search Audit logs..."
+          isDarkMode={isDarkMode}
+          className="border-0 p-0"
+        />
+
+        <button
+          onClick={handleDownload}
+          className={`p-2 rounded-lg transition-all duration-200 shadow-sm flex items-center justify-center hover:shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
+            ${isDarkMode
+              ? 'bg-blue-900/20 text-blue-400 hover:bg-blue-900/40 hover:text-blue-300 border border-blue-900/30'
+              : 'bg-blue-100/80 text-blue-600 hover:bg-blue-200 hover:text-blue-700 border border-blue-200/50'
+            }`}
+          title="Download Audit Logs"
+          aria-label="Download Audit Logs"
+        >
+          <Download className="w-5 h-5 flex-shrink-0" />
+        </button>
+      </div>
     </div>
-  );
-};
 
+    {/* DataTableUI Component */}
+    <DataTableUI
+      data={logs}
+      loading={isLoading}
+      error=""
+      totalCount={totalCount}
+      title="Audit Logs"
+      tableHeaders={TABLE_HEADERS}
+      tableHeight="550px"
+      isDarkMode={isDarkMode}
+      severityColors={SEVERITY_COLORS}
+      filters={appliedFilters}
+      filterConfig={filterConfig}
+      filterOptions={filterOptions}
+      hasActiveFilters={hasActiveFilters}
+      onFiltersChange={handleFiltersChange}
+      FilterComponent={FilterDropdown}
+      onFilterOptionsLoad={handleFilterOptionsLoad}
+      currentPage={currentPage}
+      totalPages={totalPages}
+      onPageChange={handlePageChange}
+      onRowClick={handleRowClick}
+      onRetry={refetch}
+      renderCell={renderCell}
+      itemsPerPage={itemsPerPage}
+      itemsPerPageOptions={itemsPerPageOptions}
+      onItemsPerPageChange={handleItemsPerPageChange}
+    />
+
+    <AuditLogModal
+      isOpen={isModalOpen}
+      onClose={() => setIsModalOpen(false)}
+      log={selectedLog}
+      isDarkMode={isDarkMode}
+    />
+  </div>
+);
+}
 export default AuditLogs;

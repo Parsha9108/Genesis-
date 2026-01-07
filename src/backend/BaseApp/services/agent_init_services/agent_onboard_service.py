@@ -1,4 +1,5 @@
 from BaseApp.services.imports import Response, status, socket, platform, AgentSerializer, logging
+from BaseApp.services.webapp_services.license_management_service.license_validation import validate_agent_request
 
 logger = logging.getLogger("agent_monitoring")
 API_KEY = "1234567890abcdef1234567890abcdef"
@@ -17,6 +18,15 @@ def create_agent(request):
     if api_key != API_KEY:
         logger.warning("Unauthorized attempt to create agent - Invalid API key")
         return Response({"error": "Invalid API key"}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        license_ok, license_msg = validate_agent_request()
+    except Exception:
+        logger.exception("License validation crashed")
+        return Response({"error": "License validation error"}, status=500)
+
+    if not license_ok:
+        return Response({"error": license_msg}, status=403)
 
     try:
         hostname = request.data.get("hostname")

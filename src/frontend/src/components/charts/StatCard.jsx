@@ -2,7 +2,6 @@ import React, { useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { Activity } from 'lucide-react';
 
-// Helper: convert hex to rgba
 const hexToRgba = (hex, alpha = 0.1) => {
   let r = 0, g = 0, b = 0;
 
@@ -19,7 +18,14 @@ const hexToRgba = (hex, alpha = 0.1) => {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
-const StatCard = ({ title, value, color = '#2563EB', icon: Icon = Activity, isDarkMode, onClick }) => {
+const StatCard = ({ 
+  title, 
+  value, 
+  color = '#2563EB', 
+  icon: Icon = Activity, 
+  isDarkMode, 
+  onClick
+}) => {
   const styles = useMemo(() => {
     return {
       backgroundColor: isDarkMode ? '#1F2937' : '#FFFFFF',
@@ -33,19 +39,18 @@ const StatCard = ({ title, value, color = '#2563EB', icon: Icon = Activity, isDa
   return (
     <div
       onClick={onClick}
-      className="p-6 rounded-lg shadow-md transition-all duration-200 transform hover:scale-[1.02]"
+      className="p-6 rounded-lg shadow-md transition-all duration-200 transform hover:scale-[1.02] cursor-pointer" // ✅ Always show pointer cursor
       style={{
         backgroundColor: styles.backgroundColor,
         color: styles.textColor,
         border: `1px solid ${styles.borderColor}`,
-        cursor: 'pointer',           
         transition: 'background-color 0.3s ease, transform 0.2s ease'
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = styles.hoverBg;
+        e.currentTarget.style.backgroundColor = styles.hoverBg; 
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = styles.backgroundColor;
+        e.currentTarget.style.backgroundColor = styles.backgroundColor; 
       }}
     >
       <div className="flex items-center justify-between mb-2">

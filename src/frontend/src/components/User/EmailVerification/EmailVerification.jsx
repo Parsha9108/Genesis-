@@ -1,7 +1,7 @@
 
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import axios from 'axios';
+import backendApi from '../../../api/backendAxiosInstance';
 import { toast } from 'react-toastify';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 
@@ -14,7 +14,7 @@ const EmailVerification = () => {
   useEffect(() => {
     const verifyEmail = async () => {
       try {
-        const res = await axios.get(`/api/webuser/register/verify-email/${token}`);
+        const res = await backendApi.get(`/register/verify-email/${token}`);
         setStatus('success');
         setMessage(res.data.message || 'Email verified successfully.');
         toast.success(res.data.message);

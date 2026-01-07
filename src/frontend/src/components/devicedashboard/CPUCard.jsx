@@ -18,7 +18,7 @@ export const CPUCard = ({ isDarkMode, cpuMap }) => {
     try {
       setLoading(true);
       const params = { interval: refreshInterval > 0 ? refreshInterval : 1 };
-      const res = await axios.get(`/api/webuser/device/cpu-utilization/${id}/`, { params });
+      const res = await axios.get(`/api/webapp/v1/device/cpu-utilization/${id}/`, { params });
       setCpuData(res.data);
     } catch (err) {
       console.error('[CPUCard] Error fetching CPU data:', err.response?.data || err.message);

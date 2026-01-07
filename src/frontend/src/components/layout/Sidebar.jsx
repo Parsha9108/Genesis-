@@ -276,6 +276,20 @@ const Sidebar = ({ isDarkMode, toggleTheme, isSidebarOpen, closeSidebar }) => {
             </div>
           </div>
         </div>
+        {/* IP MONITORING */}
+        <NavLink
+          to="ip_monitoring"
+          className={({ isActive }) =>
+            `w-full flex items-center space-x-3 px-3 py-2.5 sm:py-2 rounded-lg transition-all duration-200 active:scale-[0.98] ${
+              isActive ? 'shadow-sm' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+            }`
+          }
+          style={({ isActive }) => getNavLinkStyles(isActive)}
+          aria-label="IP Monitoring"
+        >
+          <Network className="w-5 h-5 flex-shrink-0" />
+          <span className="truncate text-sm sm:text-base">IP Monitoring</span>
+        </NavLink>
 
         {/* Alerts */}
         <NavLink

@@ -3,9 +3,6 @@ import { AlertCircle, ChevronDown, Check } from "lucide-react";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
-  MagnifyingGlassIcon,
-  ArrowDownTrayIcon,
-  ArrowPathIcon,
 } from "@heroicons/react/24/outline";
 import PropTypes from "prop-types";
 import "../components/index.css";
@@ -24,41 +21,29 @@ function DataTableUI({
   severityColors = {},
   itemsPerPage = 100,
   tableHeight = "550px",
-  itemsPerPageOptions = [5, 10, 20, 50],
-  onItemsPerPageChange = () => {},
+  itemsPerPageOptions = [],
+  onItemsPerPageChange = () => { },
+  tableTitle = "",
 
   // Filters
   filters = {},
   filterConfig = [],
   filterOptions = {},
   hasActiveFilters = false,
-  onFiltersChange = () => {},
-  onFilterOptionsLoad = () => {},
+  onFiltersChange = () => { },
+  onFilterOptionsLoad = () => { },
 
   // Pagination
   currentPage = 1,
   totalPages = 1,
-  onPageChange = () => {},
+  onPageChange = () => { },
 
   // Handlers
-  onRowClick = () => {},
-  onRetry = () => {},
+  onRowClick = () => { },
+  onRetry = () => { },
 
   // Cell rendering
   renderCell = null,
-
-  // Header / title / refresh
-  headerTitle = "",
-  headerCountLabel = "",
-  onRefresh = null,
-  isRefreshing = false,
-
-  // Search + Download
-  showSearch = false,
-  searchTerm = "",
-  onSearchChange = () => {},
-  showDownload = false,
-  onDownload = null,
 
   // Components
   FilterComponent = null,
@@ -166,100 +151,7 @@ function DataTableUI({
   }
 
   return (
-    <div className="space-y-4 mt-4">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
-        {/* Left: Title + refresh + count */}
-        <div className="flex items-center space-x-3">
-          <h2
-            className="text-lg font-semibold"
-            style={{ color: isDarkMode ? "#FFF" : "#111827" }}
-          >
-            {headerTitle || title}
-          </h2>
-          {onRefresh && (
-            <button
-              onClick={onRefresh}
-              disabled={isRefreshing}
-              className={`p-2 rounded-lg transition-colors ${
-                isDarkMode
-                  ? "bg-green-900/20 text-green-400 hover:bg-green-900/40"
-                  : "bg-green-100 text-green-600 hover:bg-green-200"
-              } ${isRefreshing ? "opacity-50 cursor-not-allowed" : ""}`}
-              title="Refresh"
-            >
-              <ArrowPathIcon
-                className={`w-5 h-5 ${isRefreshing ? "animate-spin" : ""}`}
-              />
-            </button>
-          )}
-          <span
-            className="text-sm font-medium px-2.5 py-0.5 rounded-full"
-            style={{
-              backgroundColor: isDarkMode ? "#1E40AF" : "#DBEAFE",
-              color: isDarkMode ? "#93C5FD" : "#1E40AF",
-            }}
-          >
-            {headerCountLabel || totalCount}
-          </span>
-        </div>
-
-        {/* Right: Search and/or Download */}
-        <div className="flex items-center space-x-3">
-          {showSearch && (
-            <div className="relative">
-              <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search..."
-                value={searchTerm}
-                onChange={(e) => onSearchChange(e.target.value)}
-                className={`pl-10 pr-4 py-1.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                  isDarkMode
-                    ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400"
-                    : "bg-white border-gray-300 text-gray-900"
-                }`}
-              />
-            </div>
-          )}
-
-          {showDownload && onDownload && (
-            <button
-              onClick={onDownload}
-              className={`p-2 rounded-lg transition-colors ${
-                isDarkMode
-                  ? "bg-blue-900/20 text-blue-400 hover:bg-blue-900/40"
-                  : "bg-blue-100 text-blue-600 hover:bg-blue-200"
-              }`}
-              title="Download"
-            >
-              <ArrowDownTrayIcon className="w-5 h-5" />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Active Filters */}
-      {hasActiveFilters && (
-        <div className="flex flex-wrap gap-2">
-          {Object.entries(filters).map(([key, value]) => {
-            if (!value || key === "dateFrom" || key === "dateTo") return null;
-            const filterItem = filterConfig.find((f) => f.key === key);
-            return (
-              <span
-                key={key}
-                className="px-3 py-1 rounded-full text-xs bg-blue-100 text-blue-800"
-              >
-                {filterItem?.label || key}: {value}
-                <button onClick={() => clearFilter(key)} className="ml-2">
-                  ×
-                </button>
-              </span>
-            );
-          })}
-        </div>
-      )}
-
+    <div className="space-y-4">
       {/* Table Container */}
       <div
         className="rounded-lg shadow border flex flex-col"
@@ -275,9 +167,9 @@ function DataTableUI({
             className="font-semibold"
             style={{ color: isDarkMode ? "#FFF" : "#525759" }}
           >
-            All {title} ({data.length})
+            {tableTitle || `All ${title}`} ({data.length})
             {loading && (
-              <span className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500" />
+              <span className="ml-2 inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500" />
             )}
           </span>
 
@@ -289,7 +181,7 @@ function DataTableUI({
                 className="text-sm"
                 style={{ color: isDarkMode ? "#9CA3AF" : "#6B7280" }}
               >
-                Rows:
+                Rows per page:
               </label>
 
               <div
@@ -312,9 +204,8 @@ function DataTableUI({
                 >
                   <span>{itemsPerPage}</span>
                   <ChevronDown
-                    className={`h-4 w-4 transition-transform duration-200 ${
-                      isDropdownOpen ? "rotate-180" : ""
-                    }`}
+                    className={`h-4 w-4 transition-transform duration-200 ${isDropdownOpen ? "rotate-180" : ""
+                      }`}
                     aria-hidden="true"
                   />
                 </button>
@@ -349,8 +240,8 @@ function DataTableUI({
                                   ? "#60A5FA"
                                   : "#2563EB"
                                 : isDarkMode
-                                ? "#D1D5DB"
-                                : "#374151",
+                                  ? "#D1D5DB"
+                                  : "#374151",
                           }}
                           onMouseEnter={(e) => {
                             if (itemsPerPage !== option) {
@@ -366,7 +257,7 @@ function DataTableUI({
                           }}
                           role="menuitem"
                         >
-                          <span>{option} rows</span>
+                          <span>{option}</span>
                           {itemsPerPage === option && (
                             <Check className="h-4 w-4" aria-hidden="true" />
                           )}
@@ -415,9 +306,8 @@ function DataTableUI({
                     {tableHeaders.map((header) => (
                       <th
                         key={header.key}
-                        className={`px-3 py-3 text-xs font-medium uppercase tracking-wider text-left ${
-                          header.className || ""
-                        }`}
+                        className={`px-3 py-3 text-xs font-medium uppercase tracking-wider text-left ${header.className || ""
+                          }`}
                         style={{
                           color: isDarkMode ? "#9CA3AF" : "#6B7280",
                         }}
@@ -445,29 +335,28 @@ function DataTableUI({
                               ? "#1F2937"
                               : "#FFFFFF"
                             : isDarkMode
-                            ? "#111827"
-                            : "#F9FAFB",
+                              ? "#111827"
+                              : "#F9FAFB",
                       }}
                     >
                       {tableHeaders.map((header) => (
                         <td
                           key={header.key}
-                          className={`px-3 py-3 text-sm ${
-                            header.className || ""
-                          }`}
+                          className={`px-3 py-3 text-sm ${header.className || ""
+                            }`}
                           style={{
                             color: isDarkMode ? "#D1D5DB" : "#6B7280",
                           }}
                         >
                           {renderCell
                             ? renderCell(
-                                item,
-                                header.key,
-                                formatDate,
-                                truncateText,
-                                severityColors,
-                                isDarkMode
-                              )
+                              item,
+                              header.key,
+                              formatDate,
+                              truncateText,
+                              severityColors,
+                              isDarkMode
+                            )
                             : item[header.key] || ""}
                         </td>
                       ))}
@@ -479,9 +368,8 @@ function DataTableUI({
 
             {/* Pagination with Page Numbers */}
             <div
-              className={`flex-shrink-0 flex items-center justify-between px-6 py-3 border-t ${
-                isDarkMode ? "border-gray-700" : "border-gray-200"
-              }`}
+              className={`flex-shrink-0 flex items-center justify-between px-6 py-3 border-t ${isDarkMode ? "border-gray-700" : "border-gray-200"
+                }`}
               style={{
                 backgroundColor: isDarkMode ? "#1F2937" : "#FFFFFF",
               }}
@@ -497,13 +385,12 @@ function DataTableUI({
                 <button
                   onClick={() => onPageChange(currentPage - 1)}
                   disabled={currentPage === 1}
-                  className={`p-2 rounded-lg ${
-                    currentPage === 1
+                  className={`p-2 rounded-lg ${currentPage === 1
                       ? "opacity-50 cursor-not-allowed"
                       : isDarkMode
-                      ? "hover:bg-gray-700"
-                      : "hover:bg-gray-100"
-                  }`}
+                        ? "hover:bg-gray-700"
+                        : "hover:bg-gray-100"
+                    }`}
                   style={{
                     color: isDarkMode ? "#D1D5DB" : "#374151",
                   }}
@@ -526,13 +413,12 @@ function DataTableUI({
                       <button
                         key={pageNumber}
                         onClick={() => onPageChange(pageNumber)}
-                        className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                          currentPage === pageNumber
+                        className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${currentPage === pageNumber
                             ? "bg-[#6366f1] text-white"
                             : isDarkMode
-                            ? "hover:bg-gray-700 text-gray-300"
-                            : "hover:bg-gray-100 text-gray-700"
-                        }`}
+                              ? "hover:bg-gray-700 text-gray-300"
+                              : "hover:bg-gray-100 text-gray-700"
+                          }`}
                       >
                         {pageNumber}
                       </button>
@@ -560,13 +446,12 @@ function DataTableUI({
                 <button
                   onClick={() => onPageChange(currentPage + 1)}
                   disabled={currentPage === totalPages}
-                  className={`p-2 rounded-lg ${
-                    currentPage === totalPages
+                  className={`p-2 rounded-lg ${currentPage === totalPages
                       ? "opacity-50 cursor-not-allowed"
                       : isDarkMode
-                      ? "hover:bg-gray-700"
-                      : "hover:bg-gray-100"
-                  }`}
+                        ? "hover:bg-gray-700"
+                        : "hover:bg-gray-100"
+                    }`}
                   style={{
                     color: isDarkMode ? "#D1D5DB" : "#374151",
                   }}
@@ -595,6 +480,7 @@ DataTableUI.propTypes = {
   itemsPerPageOptions: PropTypes.array,
   onItemsPerPageChange: PropTypes.func,
   tableHeight: PropTypes.string,
+  tableTitle: PropTypes.string,
   filters: PropTypes.object,
   filterConfig: PropTypes.array,
   filterOptions: PropTypes.object,
@@ -608,18 +494,6 @@ DataTableUI.propTypes = {
   onRetry: PropTypes.func,
   renderCell: PropTypes.func,
   FilterComponent: PropTypes.elementType,
-
-  headerTitle: PropTypes.string,
-  headerCountLabel: PropTypes.string,
-  onRefresh: PropTypes.func,
-  isRefreshing: PropTypes.bool,
-
-  showSearch: PropTypes.bool,
-  searchTerm: PropTypes.string,
-  onSearchChange: PropTypes.func,
-
-  showDownload: PropTypes.bool,
-  onDownload: PropTypes.func,
 };
 
 export default DataTableUI;

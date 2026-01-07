@@ -6,7 +6,7 @@ import { useAuth } from "../../Contexts/AuthContext";
 import { toast } from "react-toastify";
 import { useNavigate, Outlet } from "react-router-dom";
 import { useDispatch } from "react-redux";
-import axios from "axios";
+import backendApi from "../../api/backendAxiosInstance";
 import { useGetDevicesdataQuery, apiSlice } from "../../redux/apiSlice";
 import { resetPermissions } from "../../redux/userModulePermission";
 import { useRefreshSettings } from "../../Contexts/RefreshContext";
@@ -121,17 +121,15 @@ const Layout = ({
 
   const handleLogout = useCallback(async () => {
     try {
-      console.log('🚪 Logout initiated...');
       
       // 1. Call server logout API
       try {
-        const res = await axios.post(
-          "/api/webuser/logout/",
+        const res = await backendApi.post(
+          "/signout/",
           {},
           { withCredentials: true }
         );
         if (res.status === 200) {
-          console.log('✅ Server logout successful');
           toast.success(res.data.message || "Logout successful!");
         }
       } catch (error) {

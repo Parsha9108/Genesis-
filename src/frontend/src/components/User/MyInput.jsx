@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { Field, ErrorMessage, useFormikContext, useField } from 'formik';
 import { AiOutlineEye, AiOutlineEyeInvisible } from 'react-icons/ai';
 import { useDebouncedValidation } from '../../validate/useDebouncedValidation';
-import axios from 'axios';
+import backendApi from '../../api/backendAxiosInstance';
 
 export const MyInput = ({ name, label, type = 'text', disabled, enableValidation = false, options = [],autoComplete }) => {
   const isTextArea = type === 'textarea';
@@ -18,7 +18,7 @@ export const MyInput = ({ name, label, type = 'text', disabled, enableValidation
   const validateFn = useCallback(async (value) => {
     try {
       console.log(value)
-      const res = await axios.post(`/api/webuser/signup/check-${name}/`, { [name]: value });
+      const res = await backendApi.post(`/signup/check-${name}/`, { [name]: value });
       if (!res.data.available) {
         return res.data.message || `${name} is already taken`;
       }

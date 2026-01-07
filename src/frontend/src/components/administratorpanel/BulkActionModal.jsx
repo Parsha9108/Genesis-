@@ -8,11 +8,6 @@ import {
 } from '@heroicons/react/24/outline';
 import { ChevronDown } from 'lucide-react';
 import "../index.css";
-
-/* ------------------------------------------------------------------ */
-/* Dropdown stays the same (reusable) */
-/* ------------------------------------------------------------------ */
-
 const BulkActionDropdown = ({
   options,
   selectedValue,
@@ -128,16 +123,15 @@ export const BULK_ACTION_TYPES = {
   DELETE_USERS: 'delete_users',
 };
 
-/* ------------------------------------------------------------------ */
-/* NEW: Generic, dynamic BulkActionModal                              */
-/* ------------------------------------------------------------------ */
 
 const BulkActionModal = ({
   show,
   onHide,
-  selectedItems = [],      // generic IDs (users, devices, logs)
+
+  selectedItems = [],      
   isDarkMode = false,
-  config,                  // dynamic config object
+  config,              
+
   onSuccess,
 }) => {
   const [selectedValue, setSelectedValue] = useState('');
@@ -212,7 +206,8 @@ const BulkActionModal = ({
       if (onSuccess) onSuccess();
     } catch (error) {
       console.error('Bulk action error:', error);
-      toast.error(error?.data?.message || error?.message || 'Failed to apply changes');
+
+      toast.error(error?.data?.message);
     } finally {
       setIsProcessing(false);
     }

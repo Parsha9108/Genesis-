@@ -4,7 +4,7 @@ import { fetchBaseQuery } from '@reduxjs/toolkit/query';
 export const portFlagApi = createApi({
   reducerPath: 'portFlagApi',
   baseQuery: fetchBaseQuery({
-    baseUrl: '/api/webuser/',
+    baseUrl: '/api/webapp/v1/',
     prepareHeaders: (headers, { getState }) => {
       const token = getState().auth?.token;
       if (token) {

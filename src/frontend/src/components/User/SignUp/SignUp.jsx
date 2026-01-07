@@ -4,7 +4,7 @@ import SignUpValidationSchema from './SignUpValidationSchema';
 import { CardStyle } from '../CardStyle';
 import { MyInput } from '../MyInput';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import backendApi from '../../../api/backendAxiosInstance';
 import { toast } from 'react-toastify';
 import "./SignUp.css";
 import { useDocumentTitle } from '../../../Hooks/useDocumentTitle';
@@ -23,7 +23,7 @@ const SignUp = () => {
 
   const onSubmit = async (values, { setSubmitting }) => {
     try {
-      const res = await axios.post('/api/webuser/signup/', values);
+      const res = await backendApi.post('/signup/', values);
 
       if (res.status === 201) {
         toast.success(res.data.message || 'Registration successful!');

@@ -7,7 +7,12 @@ from .services.webapp_services.user_register_login_services.send_email_and_verif
 from .services.webapp_services.user_management.user_roles import RolesManageView
 from .services.webapp_services.user_management.UserManageView import UserManageView
 from .services.webapp_services.global_config.global_config_view import GlobalConfigView
+from .services.webapp_services.license_management_service.license_view import LicenseInstallView
 from .services.webapp_services.email_notifications.smtp_test_config import test_email_configuration
+from .services.webapp_services.agent_deletion_service.agent_delete import delete_agents
+from .services.webapp_services.alert_filter_services.get_latest_alerts import get_latest_alert,get_filter_options,mark_alert_as_read,mark_all_alerts_as_read,get_unread_alert_count
+from .services.webapp_services.eventlogs_filter_services.get_eventlogs import get_latest_events,get_evntlogs_filter_options,download_event_logs
+from .services.webapp_services.ip_monitoring.ip_monitor_view import IPMonitorView
 from .services.webapp_services.audit_logs.audit_logs_view import get_audit_logs,get_audit_log_filters,download_audit_logs
 
 
@@ -21,22 +26,7 @@ urlpatterns =[
     path('get/jwt/access_token/',refresh_access_token_view,name="get_access_token"),
     path('bridge/',agent_monitroing_view,name="agent_monitoring"),
 
-    path('signup/check-email/',check_email, name='check-email'),
-    path('signup/check-username/', check_username, name='check-username'),
-    path('register/reset-password/', sendemail_to_reset_password, name='send-reset-password'),
-    path('register/verify-reset-passowrd-token/', verify_reset_password_token, name='verify-email'),
-    path("password-reset/", update_password_view, name="password-reset"),
-    path('register/verify-email/<str:token>/', verify_email_view, name='verify-email'),
-    path('signin/', web_user_login_view, name='login'),
-
-    path('get/logged-in-user-details/', get_logged_in_user_details, name='get-logged-in-user-details'),
-    path('logout/', web_user_logout_view, name='logout'), 
-    
-    path('devicedata/',all_devicedata_view, name='all_devicedata'),
-    path('device/<uuid:uuid>/', get_device_by_uuid_view, name='get_device_by_uuid'),
-    path('device/cpu-utilization/<uuid:uuid>/', cpu_utilization_view, name='cpu_utilization'),
-    path('device/memory-utilization/<uuid:uuid>/', memory_utilization_view, name='memory_utilization'),
-    path('device/network-utilization/<uuid:uuid>/', network_utilization_view, name='network_utilization'),
+   
     #CPU Stats Endpoints
     path("cpu/<uuid:agent_uuid>/stats/hourly/", cpu_hourly_stats_view),
     path("cpu/<uuid:agent_uuid>/stats/daily/", cpu_daily_stats_view),
@@ -69,25 +59,58 @@ urlpatterns =[
     path("flagged_storage_devices/", flagged_storage_view, name="flagged-storage"),
     path("flagged_ports/", flagged_port_view, name="flagged-network-ports"),
     
-    
-    #alert filter 
-    path('alerts/filtered/', filtered_alerts_view, name='filtered-alerts'),
-    path('alerts/filter-options/', alert_filter_options_view, name='alert-filter-options'),
-    #Event_logs filter 
-    path('eventlogs/filtered/', filtered_eventlogs_view, name='filtered_eventlogs'),
-    path('eventlogs/filter-options/', eventlog_filter_options_view, name='eventlog_filter_options'),
-    
-    #Alert_viewed 
-    path('alerts/mark-read/', mark_alert_read_view, name='mark_alert_read'),
-    path('alerts/mark-all-read/', mark_all_alerts_read_view, name='mark_all_alerts_read'),
-    path('alerts/unread-count/', unread_alerts_count_view, name='unread_alerts_count'),
 
-    path('modules/permissions/all', get_user_permission_set, name='get_user_permission_set'),
-    path('modules/permissions/', get_module_permission, name='get_module_permission'),
-    
     # Test URL
     path('request/user/', test_request_user),
 
+]
+
+
+webappurlpatterns =[
+    
+    # path('monitoring/charts/', mon_charts_request_handler_view, name='mon-charts-request-handler'),
+    # path('component-uuid-pair/<uuid:agent_uuid>/<str:component_type>/', get_component_objects_details_view, name='component-uuid-pair'),
+    
+    #User CRUD APIS and logged in user detail
+    path('signup/check-email/',check_email, name='check-email'),
+    path('signup/check-username/', check_username, name='check-username'),
+    path('register/reset-password/', sendemail_to_reset_password, name='send-reset-password'),
+    path('register/verify-reset-passowrd-token/', verify_reset_password_token, name='verify-email'),
+    path("password-reset/", update_password_view, name="password-reset"),
+    path('register/verify-email/<str:token>/', verify_email_view, name='verify-email'),
+    path('signin/', web_user_login_view, name='sigin'),
+    path('get/logged-in-user-details/', get_logged_in_user_details, name='get-logged-in-user-details'),
+    path('signout/', web_user_logout_view, name='signout'), 
+    
+    #Permissions
+    path('modules/permissions/all', get_user_permission_set, name='get_user_permission_set'),
+    path('modules/permissions/', get_module_permission, name='get_module_permission'),
+    
+    #Device
+    path('devicedata/',all_devicedata_view, name='all_devicedata'),
+    path('device/<uuid:uuid>/', get_device_by_uuid_view, name='get_device_by_uuid'),
+    path('device/cpu-utilization/<uuid:uuid>/', cpu_utilization_view, name='cpu_utilization'),
+    path('device/memory-utilization/<uuid:uuid>/', memory_utilization_view, name='memory_utilization'),
+    path('device/network-utilization/<uuid:uuid>/', network_utilization_view, name='network_utilization'),
+    
+     #audit_logs
+    path('get_auditlogs/',get_audit_logs,name="audit_logs"),
+    path('get_filter_options/',get_audit_log_filters,name="filter_options"),
+    path('audit_logs/download/', download_audit_logs, name='audit-logs-download'),
+    
+    #get_alerts and filtered alerts
+    path('get_alerts/',get_latest_alert,name='all_alerts'),   
+    path('get_alert_filter_options/',get_filter_options,name='alert_filter_options'),
+    path('alerts/mark_read/', mark_alert_as_read, name='mark_alert_read'),
+    path('alerts/mark_all_read/', mark_all_alerts_as_read, name='mark_all_alerts_read'),
+    path('alerts/unread_count/', get_unread_alert_count, name='unread_alerts_count'),
+    
+    #get_eventlogs and filtered eventlogs
+    path('get_eventlogs/',get_latest_events,name='all_eventlogs'),
+    path('get_eventlogs_filter_options/',get_evntlogs_filter_options,name='alert_filter_options'),
+    path('export_eventlogs/',download_event_logs,name='download_eventlogs'),
+    
+    #RoleManagement
     path('roles/', RolesManageView.as_view(), name='roles-manage'),
 
     # UserManageView
@@ -98,22 +121,15 @@ urlpatterns =[
 
     path('test-smtp-config/', test_email_configuration,name='test-smtp-config'),
 
-    #audit_logs
-    path('get_auditlogs/',get_audit_logs,name="audit_logs"),
-    path('get_filter_options/',get_audit_log_filters,name="filter_options"),
-    path('audit_logs/download/', download_audit_logs, name='audit-logs-download'),
-
-]
-
-   
+    #licenseConfigView
+    path('license/',LicenseInstallView.as_view(),name='license'),
     
+    #agent_single and bulk deletion
+    path('delete_agent/',delete_agents,name="delete_agents"),
+    
+    #IP Monitor CSV upload
+    path('ip-monitoring/', IPMonitorView.as_view(), name='ip-monitor-upload-csv'),
 
-
-
-webappurlpatterns =[
-
-    # path('monitoring/charts/', mon_charts_request_handler_view, name='mon-charts-request-handler'),
-    # path('component-uuid-pair/<uuid:agent_uuid>/<str:component_type>/', get_component_objects_details_view, name='component-uuid-pair'),
 ]
 
 # agenturlpatterns =[

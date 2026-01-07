@@ -4,7 +4,7 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 export const groupsApiSlice = createApi({
   reducerPath: 'groupsApi',
   baseQuery: fetchBaseQuery({
-    baseUrl: '/api/webuser/',
+    baseUrl: '/api/webapp/v1/',
     credentials: 'include',
     prepareHeaders: (headers, { getState }) => {
       // Same JWT token logic as your working main apiSlice

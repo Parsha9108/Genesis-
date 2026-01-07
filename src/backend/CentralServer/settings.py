@@ -14,6 +14,7 @@ from pathlib import Path
 import os 
 from  decouple import config
 from datetime import timedelta
+
 LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
 
 if not os.path.exists(LOG_DIR):
@@ -22,15 +23,22 @@ if not os.path.exists(LOG_DIR):
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-CELERY_BROKER_URL = 'redis://redis:6379/0'
-CELERY_RESULT_BACKEND = 'redis://redis:6379/0'
+# Fetch from genesis.conf with fallbacks
+REDIS_HOST = os.environ.get('REDIS_HOST', '127.0.0.1')
+REDIS_PORT = os.environ.get('REDIS_PORT', '6379')
+REDIS_DB = os.environ.get('REDIS_DB', '0')
+
+# Construct the URL
+CELERY_BROKER_URL = f'redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}'
+CELERY_RESULT_BACKEND = f'redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}'
+
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 
 from celery.schedules import crontab
 
-# Beat schedule (will be stored in database)
+# Beat schedule (will be stored in database)CELERY_BEAT_SCHEDULE
 CELERY_BEAT_SCHEDULE = {
     'mark-inactive-agents-every-minute': {
         'task': 'BaseApp.tasks.mark_inactive_agents',
@@ -39,10 +47,18 @@ CELERY_BEAT_SCHEDULE = {
             'expires': 300,  # Task expires after 5 minutes if not executed
         },
     },
+    # Task A: Primary Run
+    'retention-cleanup-primary': {
+        'task': 'BaseApp.tasks.run_retention_cleanup',
+        'schedule': crontab(hour=2, minute=30),
+    }
+    
 }
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 # Timezone
 CELERY_TIMEZONE = 'Asia/Kolkata'
+
+
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY='django-insecure-!8g1fuxx5po9fh5gf8d0=w4x752iw_j%!4f'#qb60#jpi!oby60
 
@@ -229,6 +245,8 @@ MONITORING_HANDLER_CONFIG = {
 
 # ==========================================================================================
 
+LICENSE_PRIVATE_KEY_PATH = os.path.join(BASE_DIR, "Keys/private.key")
+LICENSE_PUBLIC_KEY_PATH = os.path.join(BASE_DIR, "Keys/public.key")
 
 #  Helper function to get list from environment
 def get_list_from_env(env_var, default=None):
@@ -240,7 +258,7 @@ DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 HOST_IP = os.environ.get('HOST_IP', 'localhost,192.168.100.91')
 # SECRET_KEY = os.environ.get('SECRET_KEY')
 # Get lists from comma-separated environment variables
-ALLOWED_HOSTS = get_list_from_env('ALLOWED_HOSTS','10.99.1.93,localhost,127.0.0.1,0.0.0.0,backend')
+ALLOWED_HOSTS = get_list_from_env('ALLOWED_HOSTS', '10.99.1.94,localhost,127.0.0.1,0.0.0.0,backend')
 
 CORS_ALLOWED_ORIGINS = get_list_from_env('CORS_ALLOWED_ORIGINS', 
     'https://localhost,http://localhost:3000,https://127.0.0.1,httpS://192.168.100.91')
@@ -339,8 +357,8 @@ LOGGING = {
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': os.path.join(LOG_DIR, 'agent_monitoring.log'),
             'formatter': 'verbose',
-            'maxBytes': 512000,    # Approx. 1000 log entries (~500 KB)
-            'backupCount': 1,      # No backups
+            'maxBytes': 512000,    
+            'backupCount': 1,      
         },
     },
     'loggers': {

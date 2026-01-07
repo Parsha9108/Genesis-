@@ -1,10 +1,24 @@
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
+import { useGetAlertsQuery } from "../../redux/alertFilterApi";
 import AlertTableBody from './AlertTableBody';
 
-const AlertsTable = ({ alerts = [], isDarkMode = false, isLoading }) => {
+const AlertsTable = ({ isDarkMode = false }) => {
   const navigate = useNavigate();
+
+  // Fetch all alerts using RTK Query
+  const {
+    data: apiResponse,
+    isLoading,
+    isError,
+    error
+  } = useGetAlertsQuery({}, {
+    refetchOnMountOrArgChange: true,
+  });
+
+  // Extract alerts from response
+  const alerts = apiResponse?.results?.alerts || [];
 
   const bgColor = isDarkMode ? '#1F2937' : '#FFFFFF';
   const borderColor = isDarkMode ? '#374151' : '#E5E7EB';
@@ -12,7 +26,7 @@ const AlertsTable = ({ alerts = [], isDarkMode = false, isLoading }) => {
   const headerTextColor = isDarkMode ? '#D1D5DB' : '#6B7280';
   const placeholderTextColor = isDarkMode ? '#9CA3AF' : '#6B7280';
 
-  // Filter unread alerts, sort by creation time, and pick latest 3
+  // Filter unread critical alerts, sort by creation time, and pick latest 3
   const latestUnreadAlerts = useMemo(() => {
     return alerts
       .filter(alert => 
@@ -34,14 +48,27 @@ const AlertsTable = ({ alerts = [], isDarkMode = false, isLoading }) => {
 
       <div className="flex-1 mb-4 overflow-x-hidden">
         {isLoading ? (
-          <div className="text-center py-8 text-blue-500">Loading alerts...</div>
+          <div className="flex flex-col items-center justify-center py-10">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mb-3"></div>
+            <div style={{ color: placeholderTextColor }}>Loading alerts...</div>
+          </div>
+        ) : isError ? (
+          <div className="flex flex-col items-center justify-center py-10 text-center gap-2">
+            <AlertCircle
+              className="w-10 h-10 mb-1"
+              color={isDarkMode ? '#EF4444' : '#DC2626'}
+            />
+            <div style={{ color: isDarkMode ? '#EF4444' : '#DC2626' }}>
+              {error?.data?.message || 'Failed to load alerts'}
+            </div>
+          </div>
         ) : latestUnreadAlerts.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 text-center gap-2">
             <AlertCircle
               className="w-10 h-10 mb-1"
               color={isDarkMode ? '#9CA3AF' : '#9CA3AF'}
             />
-            <div style={{ color: placeholderTextColor }}>No recent alerts</div>
+            <div style={{ color: placeholderTextColor }}>No recent critical alerts</div>
           </div>
         ) : (
           <table className="w-full text-sm">

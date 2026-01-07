@@ -1,64 +1,67 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 
 export const eventLogFilterApi = createApi({
-  reducerPath: 'eventLogFilterApi',
+  reducerPath: 'eventLogSlice',
   baseQuery: fetchBaseQuery({
-    baseUrl: '/api/webuser/',
+    baseUrl: '/api/webapp/v1/',
     prepareHeaders: (headers, { getState }) => {
-      const token = getState().auth?.token;
-      if (token) {
-        headers.set('Authorization', `Bearer ${token}`);
-      }
+      // Add auth token if needed
       return headers;
     },
   }),
-  tagTypes: ['EventLog'],
+  tagTypes: ['EventLogs', 'EventFilters'],
   endpoints: (builder) => ({
-
-    // Filtered event logs with proper parameter handling
-    getFilteredEventLogs: builder.query({
+   
+    getEventLogs: builder.query({
       query: (params = {}) => {
-        const searchParams = new URLSearchParams();
+        const queryParams = new URLSearchParams();
         
-        // Only add parameters that have values
-        if (params.device_id) searchParams.append('device_id', params.device_id);
-        if (params.event_type) searchParams.append('event_type', params.event_type);
-        if (params.component_type) searchParams.append('component_type', params.component_type);
-        if (params.time_range) searchParams.append('time_range', params.time_range);
+        // Only add uuid if device_id is provided
+        if (params.device_id) {
+          queryParams.append('uuid', params.device_id);
+        }
         
-        // ADD THESE TWO LINES FOR CUSTOM DATE RANGE SUPPORT
-        if (params.start_date) searchParams.append('start_date', params.start_date);
-        if (params.end_date) searchParams.append('end_date', params.end_date);
+        if (params.event_type) {
+          queryParams.append('event_type', params.event_type);
+        }
         
-        if (params.search_term) searchParams.append('search_term', params.search_term);
-        if (params.limit) searchParams.append('limit', params.limit.toString());
-        if (params.offset) searchParams.append('offset', params.offset.toString());
+        if (params.component_type) {
+          queryParams.append('component_type', params.component_type);
+        }
         
-        const queryString = searchParams.toString();
+        if (params.start_date) {
+          queryParams.append('start_date', params.start_date);
+        }
         
-        // // 🔍 DEBUG: Log the final URL being called
-        // console.log('[RTK Query] Final API URL:', `eventlogs/filtered/${queryString ? `?${queryString}` : ''}`);
+        if (params.end_date) {
+          queryParams.append('end_date', params.end_date);
+        }
         
-        return `eventlogs/filtered/${queryString ? `?${queryString}` : ''}`;
+        const queryString = queryParams.toString();
+        return `get_eventlogs${queryString ? `?${queryString}` : ''}`;
       },
-      providesTags: ['EventLog'],
+      providesTags: ['EventLogs'],
     }),
 
-    // Get filter options for dropdowns
+    // Get filter options for specific device
     getEventLogFilterOptions: builder.query({
-      query: (deviceId) => {
-        return deviceId 
-          ? `eventlogs/filter-options/?device_id=${deviceId}`
-          : 'eventlogs/filter-options/';
-      },
-      providesTags: ['EventLog'],
+      query: (deviceUuid) => ({
+        url: 'get_eventlogs_filter_options/',
+        params: { 
+          uuid: deviceUuid 
+        }
+      }),
+      providesTags: (result, error, deviceUuid) => [
+        { type: 'EventFilters', id: deviceUuid }
+      ],
     }),
-
   }),
 });
 
-// Export hooks
-export const { 
-  useGetFilteredEventLogsQuery,
+// Auto-generated React hooks
+export const {
+  useGetEventLogsQuery,
   useGetEventLogFilterOptionsQuery,
 } = eventLogFilterApi;
+
+export default eventLogFilterApi;

@@ -3,7 +3,7 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 export const roleApi = createApi({
   reducerPath: 'roleApi',
   baseQuery: fetchBaseQuery({
-    baseUrl: '/api/webuser',
+    baseUrl: '/api/webapp/v1/',
     prepareHeaders: (headers) => {
       headers.set('Content-Type', 'application/json');
       return headers;

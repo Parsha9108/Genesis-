@@ -78,11 +78,11 @@ def _track_changes(user, new_data, raw_password=None):
                 'time': change_time
             }
     
-    # Track is_email_verified change
+    # Track is_email_override change
     if 'is_email_override' in new_data:
         new_is_email_override = bool(new_data['is_email_override'])
         if user.is_email_override != new_is_email_override:
-            changes['is_email_enabled'] = {
+            changes['is_email_override'] = {
                 'old': user.is_email_override,
                 'new': new_is_email_override,
                 'time': change_time
@@ -330,10 +330,7 @@ class UserManageView(APIView):
                         with transaction.atomic():
                             updated_user = serializer.save()
                         
-                        # Send email
-                        email_status = "not_sent"
-                        email_message = ""
-                        
+                        #  Send email with changes
                         try:
                             if updated_user.is_email_override == False:
                                 if 'is_user_enabled' in changes_dict or 'role' in changes_dict or 'password' in changes_dict or 'username' in changes_dict:
@@ -392,8 +389,8 @@ class UserManageView(APIView):
                             }
                         })
                         
-                        logger.info(f" User {uid_str} updated: {list(changes_dict.keys())}")
-                    
+                        logger.info(f"User {uid_str} updated: {list(changes_dict.keys())}")
+                        
                     else:
                         # Add to failed updates - validation error
                         failed_updates.append({
@@ -457,8 +454,7 @@ class UserManageView(APIView):
             # Extract 'id' field (could be a single ID or a list)
             ids = request.data.get('id')
             logger.info("ids",ids)
-            logger.info("Deleted: %s", request.user)
-             # Normalize into a list correctly
+             #  Normalize into a list correctly
             if isinstance(ids, str):
                 # Single UUID string → wrap in list
                 ids = [ids]
@@ -481,7 +477,7 @@ class UserManageView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # Perform bulk delete
+            #  Perform bulk delete
             users = WebUser.objects.filter(id__in=valid_ids)
             if not users.exists():
                 return Response(
@@ -494,7 +490,7 @@ class UserManageView(APIView):
             for user_obj in users:
                 user_obj.delete(request=request)
 
-            logger.info(f"✅ Deleted {count} user(s): {usernames}")
+            logger.info(f"Deleted {count} user(s): {usernames}")
 
             return Response(
                 {

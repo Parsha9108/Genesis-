@@ -19,7 +19,7 @@ export const MemoryCard = ({ isDarkMode, memoryMap }) => {
     try {
       setLoading(true);
       const params = { interval: refreshInterval > 0 ? refreshInterval : 1 };
-      const res = await axios.get(`/api/webuser/device/memory-utilization/${id}/`, { params });
+      const res = await axios.get(`/api/webapp/v1/device/memory-utilization/${id}/`, { params });
       setMemoryData(res.data);
     } catch (err) {
       console.error('[MemoryCard] Error fetching memory data:', err.response?.data || err.message);
