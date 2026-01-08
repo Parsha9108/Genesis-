@@ -76,8 +76,8 @@ const ResetPassword = () => {
     { setSubmitting, setErrors }
   ) => {
     try {
-      const res = await axios.patch(
-        `/api/webuser/password-reset/?token=${encodeURIComponent(token)}`, 
+      const res = await backendApi.patch(
+        `/password-reset/?token=${encodeURIComponent(token)}`, 
         {
           password,
           confirm_password

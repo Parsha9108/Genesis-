@@ -66,7 +66,7 @@ const AuditLogs = ({ isDarkMode = false }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  const itemsPerPageOptions = [5, 10, 20, 50, 100];
+  const itemsPerPageOptions = [ 10, 20, 50, 100];
 
   const [currentPage, setCurrentPage] = useState(
     Number(searchParams.get("page")) || 1

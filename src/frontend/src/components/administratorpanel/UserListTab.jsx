@@ -872,7 +872,7 @@ const UserListTab = ({ isDarkMode = false }) => {
       console.log("Backend update response:", response);
 
       const updatedUser = response?.results?.[0];
-      const backendMessage = updatedUser?.message || "User updated successfully";
+      const backendMessage = updatedUser?.message;
 
       toast.update(loadingToast, {
         render: backendMessage,

@@ -332,6 +332,8 @@ class UserManageView(APIView):
                         
                         #  Send email with changes
                         try:
+                            email_status=''
+                            email_message=''
                             if updated_user.is_email_override == False:
                                 if 'is_user_enabled' in changes_dict or 'role' in changes_dict or 'password' in changes_dict or 'username' in changes_dict:
                                     html_content, plain_content, subject = EmailTemplates.send_account_update_email(
