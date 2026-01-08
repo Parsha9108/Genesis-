@@ -25,7 +25,7 @@ def test_email_configuration(request):
 
         data = request.data
         
-        # ✅ Extract test email properly
+        #  Extract test email properly
         to_email = (
             data.get('test_email') 
         )
@@ -66,7 +66,7 @@ def test_email_configuration(request):
 
             }, status=status.HTTP_200_OK)
     except Exception as e:
-        logger.error(f"❌ SMTP test error: {e}", exc_info=True)
+        logger.error(f" SMTP test error: {e}", exc_info=True)
         return Response({
             'success': False,
             'message': 'An unexpected error occurred',

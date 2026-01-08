@@ -1,110 +1,105 @@
-import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
+import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 
 export const alertFilterApi = createApi({
-  reducerPath: "alertFilterApi",
+  reducerPath: 'alertSlice',
   baseQuery: fetchBaseQuery({
-    baseUrl: "/api/webuser/",
+    baseUrl: '/api/webapp/v1',
     prepareHeaders: (headers, { getState }) => {
-      const token = getState().auth?.token;
+      const token =
+        getState()?.auth?.token || localStorage.getItem('token');
       if (token) {
         headers.set('Authorization', `Bearer ${token}`);
       }
       return headers;
     },
   }),
-  tagTypes: ['Alert'],
+  tagTypes: ['Alerts', 'AlertFilters'],
   endpoints: (builder) => ({
-
-    // Filtered alerts with proper parameter handling
-    getFilteredAlerts: builder.query({
+    getAlerts: builder.query({
       query: (params = {}) => {
-        const searchParams = new URLSearchParams();
+        const queryParams = new URLSearchParams();
         
-        if (params.device_id) searchParams.append('device_id', params.device_id);
-        if (params.severity) searchParams.append('severity', params.severity);
-        if (params.alert_type) searchParams.append('alert_type', params.alert_type);
-        if (params.time_range) searchParams.append('time_range', params.time_range);
-        if (params.start_date) searchParams.append('start_date', params.start_date);
-        if (params.end_date) searchParams.append('end_date', params.end_date);
-        if (params.search_term) searchParams.append('search_term', params.search_term);
-        if (params.limit) searchParams.append('limit', params.limit.toString());
-        if (params.offset) searchParams.append('offset', params.offset.toString());
+        if (params.device_id) {
+          queryParams.append('uuid', params.device_id);
+        }
         
-        const queryString = searchParams.toString();
-        console.log('[Alert API] Final API URL:', `alerts/filtered/${queryString ? `?${queryString}` : ''}`);
+        if (params.alert_type) {
+          queryParams.append('alert_type', params.alert_type);
+        }
         
-        return `alerts/filtered/${queryString ? `?${queryString}` : ''}`;
+        if (params.severity) {
+          queryParams.append('severity', params.severity);
+        }
+        
+        if (params.start_date) {
+          queryParams.append('start_date', params.start_date);
+        }
+        
+        if (params.end_date) {
+          queryParams.append('end_date', params.end_date);
+        }
+        
+        if (params.is_read !== undefined) {
+          queryParams.append('is_read', params.is_read);
+        }
+        
+        const queryString = queryParams.toString();
+        return `get_alerts${queryString ? `?${queryString}` : ''}`;
       },
-      providesTags: ["Alert"],
+      providesTags: ['Alerts'],
     }),
 
-    // Get filter options for dropdowns
     getAlertFilterOptions: builder.query({
-      query: (deviceId) => {
-        return deviceId 
-          ? `alerts/filter-options/?device_id=${deviceId}`
-          : 'alerts/filter-options/';
-      },
-      providesTags: ['Alert'],
+      query: (deviceUuid) => ({
+        url: 'get_alert_filter_options/',
+        params: {
+          uuid: deviceUuid
+        }
+      }),
+      providesTags: (result, error, deviceUuid) => [
+        { type: 'AlertFilters', id: deviceUuid }
+      ],
     }),
 
     // Mark single alert as read
-    markAsRead: builder.mutation({
+    markAlertAsRead: builder.mutation({
       query: (alertId) => ({
-        url: 'alerts/mark-read/',
-        method: 'PATCH',
-        body: { alert_id: alertId },
+        url: `alerts/mark_read/`,
+        body: { uuid: alertId },
+        method: 'POST',
       }),
-      // Optimistic update for instant UI feedback
-      async onQueryStarted(alertId, { dispatch, queryFulfilled, getState }) {
-        // Optimistically update the notification slice
-        dispatch({
-          type: 'notifications/markAlertAsRead',
-          payload: alertId,
-        });
-
-        try {
-          await queryFulfilled;
-          console.log(`Alert ${alertId} marked as read via API`);
-        } catch (error) {
-          console.error('Error marking alert as read:', error);
-          // You could dispatch an undo action here if needed
-        }
-      },
-      invalidatesTags: ['Alert'],
+      invalidatesTags: ['Alerts'],
     }),
 
-    // Mark all alerts as read
-    markAllAsRead: builder.mutation({
-      query: (alertIds) => ({
-        url: 'alerts/mark-all-read/',
-        method: 'PATCH',
-        body: { alert_ids: alertIds },
+    // Unread counts
+    unreadCounts: builder.query({
+      query: (deviceId) => ({
+        url: 'alerts/unread_count/',
+        params: { uuid: deviceId },
       }),
-      // Optimistic update for instant UI feedback
-      async onQueryStarted(alertIds, { dispatch, queryFulfilled }) {
-        // Optimistically update the notification slice
-        dispatch({
-          type: 'notifications/markMultipleAlertsAsRead',
-          payload: alertIds,
-        });
+      providesTags: ['Alerts'],
+    }),
 
-        try {
-          await queryFulfilled;
-          console.log(`${alertIds.length} alerts marked as read via API`);
-        } catch (error) {
-          console.error('Error marking all alerts as read:', error);
-          // You could dispatch an undo action here if needed
-        }
-      },
-      invalidatesTags: ['Alert'],
+    // Mark all alerts as read for a devic
+    markAllAlertsAsRead: builder.mutation({
+      query: (deviceUuid) => ({
+        url: 'alerts/mark_all_read/',
+        method: 'POST',
+        body: { 
+          device_uuid: deviceUuid 
+        },
+      }),
+      invalidatesTags: ['Alerts'],
     }),
   }),
 });
 
 export const {
-  useGetFilteredAlertsQuery,
+  useGetAlertsQuery,
   useGetAlertFilterOptionsQuery,
-  useMarkAsReadMutation,
-  useMarkAllAsReadMutation,
+  useMarkAlertAsReadMutation,
+  useMarkAllAlertsAsReadMutation,
+  useUnreadCountsQuery,
 } = alertFilterApi;
+
+export default alertFilterApi;

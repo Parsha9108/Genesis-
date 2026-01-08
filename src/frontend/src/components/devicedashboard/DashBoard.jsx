@@ -127,8 +127,6 @@ const Dashboard = ({isDarkMode, cpuMap, networkMap, memoryMap}) => {
   }
 
   const device = data.device;
-  console.log("Device data:", device);
-  console.log("Passing deviceId to EventLogsTable:", device?.device?.uuid);
 
   const handleRefresh = () => {
     window.location.reload();
@@ -174,8 +172,16 @@ const Dashboard = ({isDarkMode, cpuMap, networkMap, memoryMap}) => {
 
         {/* Alerts and Events Section - Responsive spacing */}
         <div className="space-y-4 sm:space-y-6">
-          <AlertsCard isDarkMode={isDarkMode} alerts={device?.monitoring_data?.alerts} />
-          <EventLogsTable isDarkMode={isDarkMode} eventLogs={device?.monitoring_data?.events} />
+         <AlertsCard 
+            isDarkMode={isDarkMode} 
+            deviceId={device?.uuid}
+            limit={100}
+          />
+          <EventLogsTable 
+            isDarkMode={isDarkMode} 
+            deviceId={device?.uuid}
+            limit={100}
+          />
         </div>
       </div>
     </div>

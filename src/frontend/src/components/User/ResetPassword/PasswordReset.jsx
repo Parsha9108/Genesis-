@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
-import axios from "axios";
+import backendApi from "../../../api/backendAxiosInstance";
 import { Eye, EyeOff } from "lucide-react";
 import { toast } from "react-toastify";
 import GenesisLogoCard from "../GenesisLogoCard";
@@ -107,7 +107,7 @@ const PasswordReset = () => {
     setIsSubmitting(true);
 
     try {
-      const res = await axios.patch(`/api/webuser/password-reset/`, {
+      const res = await backendApi.patch(`/password-reset/`, {
         email: formData.email,
         password: formData.password,
         confirm_password: formData.confirm_password,

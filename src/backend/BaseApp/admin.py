@@ -4,6 +4,7 @@ from .models.roles import *
 from .models.audit_logs import AuditLog
 
 from .models.global_config import *
+from BaseApp.models.ipmonitor import IPMonitor,IPMonitorCheckpoint
 admin.site.register(Agent)
 admin.site.register(Device)
 admin.site.register(CPU)
@@ -23,7 +24,6 @@ admin.site.register(NetworkPortMonitoring)
 admin.site.register(Alert)
 admin.site.register(WebUser)
 admin.site.register(PendingDeletion)
-admin.site.register(MonitoringSession)
 admin.site.register(Group)
 admin.site.register(GroupAgentAssignment)
 admin.site.register(ApplicationCPUIO)
@@ -34,7 +34,8 @@ admin.site.register(PermissionSet)
 admin.site.register(AuditLog)
 
 admin.site.register(GlobalConfig)
-
+admin.site.register(IPMonitor)
+admin.site.register(IPMonitorCheckpoint)
 
 @admin.register(MonitoringCheckpoint)
 class MonitoringCheckpointAdmin(admin.ModelAdmin):

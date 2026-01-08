@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { Bell } from 'lucide-react';
 import PropTypes from 'prop-types';
 import { useNavigate } from 'react-router-dom';
-import { useMarkAsReadMutation } from '../../redux/alertFilterApi';
+import { useMarkAlertAsReadMutation } from '../../redux/alertFilterApi';
 import '../../components/index.css';
 
 const NotificationDropdown = ({
@@ -20,7 +20,7 @@ const NotificationDropdown = ({
   const navigate = useNavigate();
   // ✅ Track which specific notification is sliding out by UUID
   const [slidingOutId, setSlidingOutId] = useState(null);
-  const [markAsRead] = useMarkAsReadMutation();
+  const [markAsRead] = useMarkAlertAsReadMutation();
 
   // ✅ Simple filter: Critical + unread (is_read === false)
   const criticalUnreadAlerts = useMemo(() => {

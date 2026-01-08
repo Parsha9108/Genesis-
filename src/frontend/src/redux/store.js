@@ -9,6 +9,11 @@ import { apiSlice } from './apiSlice';
 // GROUPS API SLICE
 import { groupsApiSlice } from './groupsApiSlice';
 
+import { ipMonitoringApi } from './ipMonitoringApi';
+
+// DEVICES API SLICE
+import { devicesApi } from './devicesApiSlice';
+
 // FLAG API SLICES
 import { storageFlagApi } from './storageFlagApi';
 import { portFlagApi } from './networkFlagApi';
@@ -41,6 +46,8 @@ const appReducer = combineReducers({
   [apiSlice.reducerPath]: apiSlice.reducer,
   [userApiSlice.reducerPath]: userApiSlice.reducer,
   [storageFlagApi.reducerPath]: storageFlagApi.reducer,
+  [devicesApi.reducerPath]: devicesApi.reducer, 
+  [ipMonitoringApi.reducerPath]: ipMonitoringApi.reducer,
   [permissionApi.reducerPath]: permissionApi.reducer,
   [portFlagApi.reducerPath]: portFlagApi.reducer,
   // FILTER API REDUCERS
@@ -92,7 +99,9 @@ const persistConfig = {
     apiSlice.reducerPath,
     groupsApiSlice.reducerPath,
     storageFlagApi.reducerPath, 
+    ipMonitoringApi.reducerPath,
     portFlagApi.reducerPath,
+    devicesApi.reducerPath,
     userApiSlice.reducerPath,
     permissionApi.reducerPath,
     alertFilterApi.reducerPath,
@@ -139,6 +148,8 @@ export const store = configureStore({
           storageFlagApi.reducerPath,
           portFlagApi.reducerPath,
           userApiSlice.reducerPath,
+          devicesApi.reducerPath,
+          ipMonitoringApi.reducerPath,  
           permissionApi.reducerPath,
           alertFilterApi.reducerPath,
           eventLogFilterApi.reducerPath,
@@ -154,6 +165,8 @@ export const store = configureStore({
           storageFlagApi.reducerPath,
           portFlagApi.reducerPath,
           userApiSlice.reducerPath,
+          devicesApi.reducerPath,
+          ipMonitoringApi.reducerPath,
           permissionApi.reducerPath,
           alertFilterApi.reducerPath,
           eventLogFilterApi.reducerPath,
@@ -169,10 +182,12 @@ export const store = configureStore({
     .concat(permissionApi.middleware)
     .concat(storageFlagApi.middleware)
     .concat(portFlagApi.middleware)
+    .concat(devicesApi.middleware) 
     .concat(alertFilterApi.middleware)
     .concat(eventLogFilterApi.middleware)
     .concat(roleApi.middleware)
     .concat(globalApiSlice.middleware)
+    .concat(ipMonitoringApi.middleware)
     .concat(auditLogsApi.middleware),
   
   devTools: process.env.NODE_ENV !== 'production' && {
@@ -221,12 +236,14 @@ if (process.env.NODE_ENV === 'development') {
         groups: 'Groups API cache (not persisted)',
         storageFlag: 'Storage Flag API cache (not persisted)',
         portFlag: 'Port Flag API cache (not persisted)',
+        devices: 'Devices API cache (not persisted)',
         user: 'User API cache (not persisted)',
         permission: 'Permission API cache (not persisted)',
         alertFilter: 'Alert Filter API cache (not persisted)',
         eventLogFilter: 'Event Log Filter API cache (not persisted)',
         role: 'Role API cache (not persisted)',
         global: 'GLOBAL API cache (not persisted)',
+        ipMonitoring: 'IP Monitoring API cache (not persisted)',
         auditLogs: 'Audit Logs API cache (not persisted)',
       }
     });
@@ -244,7 +261,9 @@ export const apis = {
   alertFilter: alertFilterApi,
   eventLogFilter: eventLogFilterApi,
   role: roleApi,
+  devices: devicesApi, 
   global: globalApiSlice,
+  ipMonitoring: ipMonitoringApi,
   auditLogs: auditLogsApi,
 };
 
@@ -256,10 +275,12 @@ export const resetAllApiCaches = () => {
   store.dispatch(permissionApi.util.resetApiState());
   store.dispatch(storageFlagApi.util.resetApiState());
   store.dispatch(portFlagApi.util.resetApiState());
+  store.dispatch(devicesApi.util.resetApiState());
   store.dispatch(alertFilterApi.util.resetApiState());
   store.dispatch(eventLogFilterApi.util.resetApiState());
   store.dispatch(roleApi.util.resetApiState());
   store.dispatch(globalApiSlice.util.resetApiState());
+  store.dispatch(ipMonitoringApi.util.resetApiState());
   store.dispatch(auditLogsApi.util.resetApiState());
   console.log('All API caches reset including role, filter, and SMTP APIs');
 };

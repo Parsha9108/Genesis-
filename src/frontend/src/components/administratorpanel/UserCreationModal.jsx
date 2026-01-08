@@ -12,6 +12,7 @@ import { ChevronDown } from 'lucide-react';
 import { useCreateUserMutation } from '../../redux/userApiSlice';
 import { useGetRolesQuery } from '../../redux/roleApiSlice';
 
+
 // Role Dropdown Component for Creation Modal
 const CreateRoleDropdown = ({ roleChoices, selectedRole, setSelectedRole, isDarkMode, disabled = false, isLoading = false }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -161,6 +162,7 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
         return formData.username.trim() !== '' &&
           formData.email.trim() !== '' &&
           formData.password !== '';
+          formData.password !== '';
       case 'role':
         return formData.username.trim() !== '' &&
           formData.email.trim() !== '' &&
@@ -293,8 +295,7 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
     };
 
     console.log("Payload being sent:", userData);
-    setLoading(true);
-
+    setLoading(true)
     try {
       const res = await createUser(userData).unwrap();
       console.log("This is response for the user creation", res);
@@ -303,12 +304,31 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
       const createdUsername = res?.user?.username ?? userData.username;
       const createdEmail = res?.user?.email ?? userData.email;
       const createdRole = res?.user?.role?.role_name ?? "Unknown Role";
+      // Extract backend data safely
+      
 
       setLoading(false);
       handleReset();
       onUserCreated();
       onHide();
+      setLoading(false);
+      handleReset();
+      onUserCreated();
+      onHide();
 
+      setTimeout(() => {
+        toast.success(
+          `User "${createdUsername}" created successfully with role "${createdRole}"!`,
+          {
+            position: "top-right",
+            autoClose: 4000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+          }
+        );
+      }, 300);
       setTimeout(() => {
         toast.success(
           `User "${createdUsername}" created successfully with role "${createdRole}"!`,
@@ -329,7 +349,7 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
       handleBackendError(error);
     }
   };
-
+    
   const handleReset = () => {
     setFormData({
       username: '',
@@ -651,6 +671,8 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
           <div className={`p-3 rounded-lg border ${isDarkMode
             ? 'bg-gray-700/50 border-gray-600'
             : 'bg-gray-50 border-gray-200'
+            ? 'bg-gray-700/50 border-gray-600'
+            : 'bg-gray-50 border-gray-200'
             }`}>
             <div className="flex items-center">
               <input
@@ -659,6 +681,8 @@ const UserCreationModal = ({ userId, show, onHide, onUserCreated, isDarkMode = f
                 checked={emailOverrideEnabled}
                 onChange={(e) => setEmailOverrideEnabled(e.target.checked)}
                 className={`w-4 h-4 rounded border transition-colors cursor-pointer ${isDarkMode
+                  ? 'border-gray-500 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-700'
+                  : 'border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-offset-white'
                   ? 'border-gray-500 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-700'
                   : 'border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-offset-white'
                   }`}

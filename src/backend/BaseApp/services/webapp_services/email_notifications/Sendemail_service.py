@@ -36,9 +36,9 @@ class EmailService:
             )
             return connection
         except (ValueError, TypeError) as e:
-            logger.error(f"❌ Invalid SMTP configuration: {e}", exc_info=True)
+            logger.error(f" Invalid SMTP configuration: {e}", exc_info=True)
         except Exception as e:
-            logger.error(f"❌ Failed to create SMTP connection: {e}", exc_info=True)
+            logger.error(f" Failed to create SMTP connection: {e}", exc_info=True)
             raise
 
     @staticmethod
@@ -74,7 +74,7 @@ class EmailService:
                 return False, error_msg
             
             # Get SMTP configuration from database
-            logger.info(f"📧 Preparing to send email to {to_emails}")
+            logger.info(f"Preparing to send email to {to_emails}")
             smtp_config = GlobalConfig.get_smtp_config()
             
             if not smtp_config or not any(smtp_config.values()):
@@ -89,7 +89,7 @@ class EmailService:
             from_email = smtp_config.get('smtp.from_email')
            
             
-            logger.info(f"📧 Sending from: {from_email} to: {to_emails}")
+            logger.info(f"Sending from: {from_email} to: {to_emails}")
             
             # Create email with both HTML and plain text
             email = EmailMultiAlternatives(

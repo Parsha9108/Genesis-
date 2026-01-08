@@ -3,7 +3,7 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 // ✅ Enhanced custom base query to handle 404s, parsing errors, and provide better logging
 const customBaseQuery = async (args, api, extraOptions) => {
   const rawBaseQuery = fetchBaseQuery({
-    baseUrl: '/api/webuser/',
+    baseUrl: '/api/webapp/v1',
     credentials: 'include',
     prepareHeaders: (headers, { getState }) => {
       // Add any authentication headers if needed
@@ -102,6 +102,44 @@ export const apiSlice = createApi({
 
   endpoints: (builder) => ({
     // === DEVICE ENDPOINTS ===
+    getDevices: builder.query({
+      query: ({ page = 1, page_size = 10, search = '', os = '', device_type = '', status = '' }) => {
+        const params = new URLSearchParams({
+          page: page.toString(),
+          page_size: page_size.toString(),
+        });
+        
+        if (search) params.append('search', search);
+        if (os) params.append('os', os);
+        if (device_type) params.append('device_type', device_type);
+        if (status) params.append('status', status);
+        
+        return `devices?${params.toString()}`;
+      },
+      providesTags: (result) => 
+        result?.results?.devices
+          ? [
+              ...result.results.devices.map(({ uuid }) => ({ type: 'Devices', id: uuid })),
+              { type: 'Devices', id: 'LIST' },
+            ]
+          : [{ type: 'Devices', id: 'LIST' }],
+      transformResponse: (response) => {
+        // Transform to consistent structure
+        return {
+          devices: response.results?.devices || [],
+          count: response.count || 0,
+          next: response.next,
+          previous: response.previous,
+        };
+      },
+      transformErrorResponse: (response) => ({
+        status: response.status,
+        error: response.data?.error || 'Failed to fetch devices',
+        message: response.data?.message || 'Unable to load device data',
+      }),
+      keepUnusedDataFor: 60,
+    }),
+
     getDevicesdata: builder.query({
       query: () => 'devicedata',
       providesTags: ['Devices'],
@@ -520,6 +558,7 @@ export const apiSlice = createApi({
 // Export hooks including the NEW device hooks
 export const {
   // Device hooks
+  useGetDevicesQuery,
   useGetDevicesdataQuery,
   useGetDeviceDetailsByIdQuery,
   useGetAvailableDevicesdataQuery,

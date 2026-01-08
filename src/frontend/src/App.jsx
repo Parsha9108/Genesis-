@@ -11,6 +11,7 @@ import { Settings } from 'lucide-react';
 // Lazy imports
 const Dashboard = lazy(() => import('./components/pages/Dashboard'));
 const DevicesPage = lazy(() => import('./components/pages/DevicesPage'));
+const IPMonitoring = lazy(() => import('./components/pages/IPMonitoring'));
 const DashBoard = lazy(() => import('./components/devicedashboard/DashBoard'));
 const DiskDetails = lazy(() => import('./components/devicemoredetails/DiskDetails'));
 const DiskIo = lazy(() => import('./components/devicemoredetails/DiskIO'));
@@ -26,6 +27,7 @@ const Storage = lazy(() => import('./components/pages/Storage'));
 const CPUHealth = lazy(() => import('./components/pages/Cpu'));
 const MemoryHealth = lazy(() => import('./components/pages/Memory'));
 const NetworkInterfaces = lazy(() => import('./components/pages/Network'));
+const ErrorPage =lazy(()=>import('./components/ErrorPage'))
 
 // Updated imports - Now using GroupManagement parent component
 const GroupManagement = lazy(() => import('./components/pages/GroupManagement'));
@@ -46,7 +48,7 @@ const SettingsPage = lazy(() => import('./components/layout/Settings'));
 const AuditLogs = lazy(() => import('./components/Audit_logs/AuditLogs'));
 
 //globalConfig page
-const GlobalConfiguration = lazy(()=>import('./components/administratorpanel/GlobalConfigWrapper'));
+const GlobalConfiguration = lazy(()=>import('./components/administratorpanel/GlobalConfiguration'));
 
 const SignIn = lazy(() => import('./components/User/SignIn/SignIn'));
 const SignUp = lazy(() => import('./components/User/SignUp/SignUp'));
@@ -146,6 +148,7 @@ const AppContent = () => {
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path='dashboard' element={<Dashboard isDarkMode={isDarkMode} activeAgents={activeAgents} />} />
             <Route path="devices" element={<DevicesPage isDarkMode={isDarkMode} />} />
+            <Route path="ip_monitoring" element={<IPMonitoring isDarkMode={isDarkMode} />} />
             <Route path="devices/:id" element={<DashBoard isDarkMode={isDarkMode} cpuMap={cpuMap} memoryMap={memoryMap} networkMap={networkMap} refreshInterval={refreshInterval} />} />
             <Route path="/profile" element={<AdminPanel isDarkMode={isDarkMode}/> } />
             <Route path="/userlist" element={<Userlist isDarkMode={isDarkMode} />} />
@@ -185,6 +188,8 @@ const AppContent = () => {
 
             <Route path="/custom-groups" element={<GroupManagement isDarkMode={isDarkMode} />} />
           </Route>
+          {/*Page not found error*/}
+          <Route path="*" element={<ErrorPage isDarkMode={isDarkMode} />}/>
         </Routes>
       </Suspense>
    

@@ -1,12 +1,12 @@
 import React, { useMemo } from 'react';
 import { X } from 'lucide-react';
-import { useMarkAllAsReadMutation } from '../../redux/alertFilterApi';
+import { useMarkAllAlertsAsReadMutation } from '../../redux/alertFilterApi';
 import { timeAgo } from './TimeAgo';
 
 const PopupNotification = ({ isDarkMode, onClose }) => {
 
   // RTK Query mutation for marking all as read
-  const [markAllAsRead, { isLoading: loading, isError, error }] = useMarkAllAsReadMutation();
+  const [markAllAsRead, { isLoading: loading, isError, error }] = useMarkAllAlertsAsReadMutation();
 
   // Filter for critical unread notifications only
   const criticalNotifications = useMemo(() => {

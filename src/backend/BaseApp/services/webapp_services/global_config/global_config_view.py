@@ -8,14 +8,20 @@ import json
 from BaseApp.utils import check_permission
 from django.utils.decorators import method_decorator
 from rest_framework.permissions import IsAuthenticated
-from BaseApp.utils import JWTCookieAuthentication
+from BaseApp.utils import JWTCookieAuthentication,get_license_status
 from BaseApp.models.base_audit_model import BaseAuditModel
 logger = logging.getLogger("agent_monitoring")
 
 # Keys that should be masked when returning to clients
+SENSITIVE_KEY_SUBSTRINGS = ("password", "secret", "token", "key")
 
-def bulk_update_configs(request,config_dict):
+def _mask_if_sensitive(item_key, value):
+    if any(sub in item_key.lower() for sub in SENSITIVE_KEY_SUBSTRINGS):
+        return "****************"
+    return value
 
+def update_configs(request,config_dict):
+    MASK = "****************"
     updated = []
     validation_errors = []
     validated_data = {}
@@ -74,9 +80,18 @@ class GlobalConfigView(APIView):
     def get(self, request):
         # Reconstruct nested config from all DB rows
         entries = GlobalConfig.objects.all()
-        flat = {e.item_key: e.item_value for e in entries}
+        flat = {
+        e.item_key: _mask_if_sensitive(e.item_key, e.item_value)
+        for e in entries
+        }
         
-        # Mask sensitive values
+        license_exists = GlobalConfig.objects.filter(item_key="license.key").exists()
+        if license_exists:
+            license_status = get_license_status()
+
+            for key, value in license_status.items():
+                flat[f"license.{key}"] = value
+
         return Response(flat, status=status.HTTP_200_OK)
     
     @method_decorator(check_permission(module='global_configuration', allowed_action='update'))
@@ -84,9 +99,8 @@ class GlobalConfigView(APIView):
     def patch(self, request):
 
         config_data = request.data
-        user = request.user
-        logger.info(f"Received config update request: {config_data}")
-        updated_count, errors = bulk_update_configs(request,config_data)
+
+        updated_count, errors = update_configs(request,config_data)
 
         if errors:
             return Response({
@@ -97,7 +111,7 @@ class GlobalConfigView(APIView):
 
         return Response({
             "success": True,
-            "message": "configurations updated successfully.",
+            "message": "Configurations updated successfully.",
             "summary": {
                 "updated": updated_count
             }

@@ -8,6 +8,7 @@ from .models import Agent
 from rest_framework import serializers
 from django.core.validators import validate_ipv4_address, validate_ipv6_address
 from .models import *
+from BaseApp.models.ipmonitor import IPMonitor,IPMonitorCheckpoint
 from django.contrib.auth.hashers import make_password
 import logging
 from django.contrib.auth.hashers import check_password
@@ -222,7 +223,8 @@ class AgentSerializer(serializers.ModelSerializer):
     
     
 class EventSerializer(serializers.ModelSerializer):
-
+    device_name = serializers.CharField(source='agent.hostname', read_only=True)
+    
     class Meta:
         model = Event
         fields =  '__all__'
@@ -230,10 +232,15 @@ class EventSerializer(serializers.ModelSerializer):
         
 class AlertSerializer(serializers.ModelSerializer):
     hostname = serializers.CharField(source='checkpoint.agent.hostname', read_only=True)
+
     class Meta:
         model = Alert
-        fields = '__all__'
-
+        fields = [
+            'uuid', 'hostname', 'device_name','alert_type', 'severity', 
+            'details', 'created_at', 'is_read'
+        ]
+        
+    
 class CpuMonitoringSerializer(serializers.ModelSerializer):
     checkpoint = serializers.CharField(source='checkpoint.uuid', read_only=True)
 
@@ -371,32 +378,37 @@ class WebLoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)   
     
 
-class WebAgentSerializer(serializers.ModelSerializer):
-    device = DeviceSerializer(read_only=True)
-    monitoring_data = serializers.SerializerMethodField()  
+class Deviceserializer(serializers.ModelSerializer):
+    """Serializer for Agent/Device data in groups"""
+    dev_phy_vm = serializers.SerializerMethodField() 
+    ip_address = serializers.SerializerMethodField()   
+    class Meta:
+        model = Device  # Correct model
+        fields = ['uuid', 'dev_phy_vm', 'ip_address']
 
+    def get_dev_phy_vm(self, obj):
+        # obj is Device instance - access directly
+        return getattr(obj, 'dev_phy_vm', None)
+
+    def get_ip_address(self, obj):
+        #  obj is Device - traverse nic → port → ip
+        if obj.nic.exists():
+            for nic in obj.nic.all():
+                for port in nic.port.all():
+                    for ip in port.ip.all():
+                        if ip.gateway and ip.gateway != "0.0.0.0":
+                            return ip.address
+        return None
+    
+class WebAgentserializer(serializers.ModelSerializer):
+    device = Deviceserializer(read_only=True)
     class Meta:
         model = Agent
-        fields = ["uuid", "os", "os_version", "hostname", "device","status","uptime_started_at", "last_activated_at","last_seen","monitoring_data","last_uptime_duration"]  
-
-    def get_monitoring_data(self, obj):
-        events = obj.event_set.all().order_by('-created_at')[:100]
-        checkpoint_uuids = obj.checkpoints.values_list('uuid', flat=True)
-        alerts = Alert.objects.filter(checkpoint_id__in=checkpoint_uuids).order_by('-created_at')
-        return {
-            "events": EventSerializer(events, many=True).data,
-            "alerts": AlertSerializer(alerts, many=True).data,
-        }
-        
+        fields = ["uuid", "os", "os_version", "hostname", "device","status","uptime_started_at", "last_activated_at","last_seen","last_uptime_duration","device"]  
         
 from rest_framework import serializers
 from .models import Group, GroupAgentAssignment, Agent, WebUser
 
-class Deviceserializer(serializers.ModelSerializer):
-    """Serializer for Agent/Device data in groups"""
-    class Meta:
-        model = Agent
-        fields = ['uuid', 'hostname', 'status', 'os', 'os_version', 'last_seen']
 
 class GroupAgentAssignmentSerializer(serializers.ModelSerializer):
     """Serializer for group-agent assignments with device details"""
@@ -442,7 +454,7 @@ class WebLoginSerializer(serializers.Serializer):
     
 
 class WebAgentSerializer(serializers.ModelSerializer):
-    device = DeviceSerializer(read_only=True)
+    device = Deviceserializer(read_only=True)
     monitoring_data = serializers.SerializerMethodField()  
 
     class Meta:
@@ -458,29 +470,6 @@ class WebAgentSerializer(serializers.ModelSerializer):
             "alerts": AlertSerializer(alerts, many=True).data,
         }
         
-
-class Deviceserializer(serializers.ModelSerializer):
-    """Serializer for Agent/Device data in groups"""
-    dev_phy_vm = serializers.SerializerMethodField()
-    ip_address = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Agent
-        fields = ['uuid','hostname','status','os','os_version','dev_phy_vm','ip_address',]
-
-    def get_dev_phy_vm(self, obj):
-        if obj.device:
-            return obj.device.dev_phy_vm
-        return None
-
-    def get_ip_address(self, obj):
-        if obj.device and obj.device.nic.exists():
-            for nic in obj.device.nic.all():
-                for port in nic.port.all():
-                    for ip in port.ip.all():
-                        if ip.gateway and ip.gateway != "0.0.0.0":
-                            return ip.address   
-        return None
 
     
 class GroupAgentAssignmentSerializer(serializers.ModelSerializer):
@@ -837,4 +826,87 @@ class AuditLogSerializer(serializers.ModelSerializer):
 
     def get_severity_display(self, obj):
         return obj.get_severity_display() 
+
+
+class IPMonitorSerializer(serializers.ModelSerializer):
+    # These fields come from the annotate() in the view
+    status = serializers.CharField(read_only=True, allow_null=True)
+    min_latency = serializers.FloatField(read_only=True, allow_null=True)
+    max_latency = serializers.FloatField(read_only=True, allow_null=True)
+    jitter = serializers.FloatField(read_only=True, allow_null=True)
+    created_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    
+    class Meta:
+        model = IPMonitor
+        fields = [
+            'uuid',
+            'ip_address',
+            'name',
+            'status',
+            'min_latency',
+            'max_latency',
+            'jitter',
+            'created_at'
+        ]
+        read_only_fields=['uuid']
+    
+    
+    def validate_ip_address(self, value):
+        """Validate IP format and uniqueness"""
+        import ipaddress
+        
+        # Validate format
+        try:
+            ipaddress.ip_address(value)
+        except ValueError:
+            raise serializers.ValidationError(f"Invalid IP address: {value}")
+        
+        # Check uniqueness (exclude current instance during update)
+        instance = self.instance
+        query = IPMonitor.objects.filter(ip_address=value)
+        logger = logging.getLogger('agent_monitoring')
+        logger.info(f"Validating IP address uniqueness for: {value} and instance: {instance} and query: {query}")
+        if instance:
+            query = query.exclude(uuid=instance.uuid)
+        logger.info(f"Post-exclusion query for uniqueness: {query} and exists: {query.exists()}")
+        if query.exists():
+            raise serializers.ValidationError(
+                "An IP Monitor with this IP address already exists."
+            )
+        
+        return value
+    
+    def validate_name(self, value):
+        """Validate name uniqueness"""
+        instance = self.instance
+        query = IPMonitor.objects.filter(name__iexact=value)
+        logger.info(f"Validating name uniqueness for: {value} and instance: {instance} and query: {query}")
+        if instance:
+            query = query.exclude(uuid=instance.uuid)
+        logger.info(f"Post-exclusion query for uniqueness: {query} and exists: {query.exists()}")
+    
+        if query.exists():
+            raise serializers.ValidationError(
+                "An IP Monitor with this name already exists."
+            )
+        return value
+    
+    def update(self, instance, validated_data):
+        # Only update name and ip_address
+        if 'ip_address' in validated_data and validated_data['ip_address'] != instance.ip_address:
+            # Reset monitoring data when IP changes
+            instance.status = 'down'
+            instance.response_time = None
+            instance.last_checked = None
+            
+        instance.name = validated_data.get('name', instance.name)
+        instance.ip_address = validated_data.get('ip_address', instance.ip_address)
+        instance.save()
+        return instance
+    
+class IPMonitorCSVSerializer(serializers.Serializer):
+    csv_file = serializers.FileField()
+    
+
+
 

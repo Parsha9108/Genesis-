@@ -5,6 +5,11 @@ from django.core.exceptions import ValidationError
 from django.core.validators import validate_email, validate_ipv4_address, validate_ipv6_address
 import re
 import logging
+import base64, json
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from django_celery_beat.models import PeriodicTask, IntervalSchedule
+
 from BaseApp.models.base_audit_model import BaseAuditModel
 logger = logging.getLogger("agent_monitoring")
 
@@ -14,7 +19,7 @@ class GlobalConfig(BaseAuditModel):
     # - value: stored as string (or JSON for structured)
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     item_key = models.CharField(max_length=128)
-    item_value = models.CharField(max_length=128)
+    item_value = models.TextField()
 
     ALLOWED_KEYS = [
         'smtp.host',
@@ -30,6 +35,12 @@ class GlobalConfig(BaseAuditModel):
         'monitoring.diskThreshold',
         'monitoring.networkThreshold',
         'monitoring.repeatFrequency',
+        'dataretention.monitoring',
+        'dataretention.auditlogs',
+        'dataretention.last_run',
+        'monitoring.ip_ping_interval',
+        'monitoring.ip_ping_count',
+        'monitoring.ip_ping_timeout'  
     ]
 
     def __str__(self):
@@ -47,11 +58,11 @@ class GlobalConfig(BaseAuditModel):
         Returns:
             tuple: (is_valid, error_message, cleaned_value)
         """
-        # ✅ STEP 1: Validate key exists
+        #  STEP 1: Validate key exists
         if key not in cls.ALLOWED_KEYS:
             return False, f"Invalid key '{key}'. Allowed: {', '.join(cls.ALLOWED_KEYS)}", None
         
-        # ✅ STEP 2: Validate value based on key
+        #  STEP 2: Validate value based on key
         str_value = str(value).strip()
         
         # Empty value check
@@ -136,7 +147,8 @@ class GlobalConfig(BaseAuditModel):
                 return False, f"{key}: Must be greater than 0", None
             except ValueError:
                 return False, f"{key}: Must be a valid integer", None
-        
+
+
         # Default: accept as string
         return True, None, str_value
     
@@ -168,7 +180,7 @@ class GlobalConfig(BaseAuditModel):
         simple_hostname = re.compile(r'^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$')
         
         return bool(domain_regex.match(hostname) or simple_hostname.match(hostname))
-     # ✅ Validate each key-value pair with single function
+   
     
 
     @classmethod
@@ -182,7 +194,7 @@ class GlobalConfig(BaseAuditModel):
             except cls.DoesNotExist:
                 logger.warning(f"SMTP config '{key}' not found in database.")
         return smtp_config
-    # BaseApp/models.py (add to your GlobalConfig class)
+
 
     @classmethod
     def get_config(cls, key, default=None):
@@ -192,3 +204,57 @@ class GlobalConfig(BaseAuditModel):
         except cls.DoesNotExist:
             logger.warning(f"Config '{key}' not found, using default: {default}")
             return default
+
+    @classmethod
+    def set_license_key(cls, license_key):
+        obj, _ = cls.objects.update_or_create(
+            item_key="license.key",
+            defaults={"item_value": license_key},
+        )
+        return obj
+
+    @classmethod
+    def get_license_key(cls):
+        try:
+            return cls.objects.get(item_key="license.key").item_value
+        except cls.DoesNotExist:
+            return None
+
+@receiver(post_save, sender=GlobalConfig)
+def update_celery_schedule_on_ping_interval_change(sender, instance, created, **kwargs):
+    logger.info("""Auto-update Celery schedule when monitoring.ping_interval changes""")
+    
+    # List of keys that trigger schedule update
+    PING_INTERVAL_KEYS = ['monitoring.ip_ping_interval']
+    
+    if instance.item_key not in PING_INTERVAL_KEYS:
+        return  # Not a ping interval key, ignore
+    
+    try:
+        interval_seconds = int(instance.item_value)
+        
+       
+        logger.info(f"Detected {instance.item_key} change to {interval_seconds}s")
+        
+        # Get or create the interval schedule
+        schedule, _ = IntervalSchedule.objects.get_or_create(
+            every=interval_seconds,
+            period=IntervalSchedule.SECONDS,
+        )
+        
+        # Update task directly (single query)
+        task_name = 'Auto Ping All IPs'
+        updated_count = PeriodicTask.objects.filter(name=task_name).update(
+            interval=schedule,
+            enabled=True
+        )
+        
+        if updated_count > 0:
+            logger.info(f"Updated '{task_name}' to {interval_seconds}s")
+        else:
+            logger.warning(f"Task '{task_name}' not found.")
+    
+    except ValueError:
+        logger.error(f"Invalid ping_interval value: {instance.item_value}")
+    except Exception as e:
+        logger.error(f"Error updating Celery schedule: {e}", exc_info=True)

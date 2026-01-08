@@ -47,7 +47,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               </RefreshProvider>
             </WebSocketProvider>
           </AuthProvider>
-        </BrowserRouter> {/* ← Close BrowserRouter here */}
+        </BrowserRouter>
       </PersistGate>
     </Provider>
   </React.StrictMode>

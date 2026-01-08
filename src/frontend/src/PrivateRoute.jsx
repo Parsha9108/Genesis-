@@ -1,6 +1,6 @@
 import  { useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
-import axios from 'axios';
+import backendApi from '../../frontend/src/api/backendAxiosInstance';
 import { useAuth } from './Contexts/AuthContext';
 
 
@@ -16,7 +16,7 @@ const PrivateRoute = ({ children }) => {
 
   useEffect(() => {
     setLoading(true);
-    axios.get('/api/webuser/get/logged-in-user-details/', { withCredentials: true })
+backendApi.get('/get/logged-in-user-details/', { withCredentials: true })
       .then(res => {
         if (res.status === 200) {
            console.log("Checking authentication status...",res)

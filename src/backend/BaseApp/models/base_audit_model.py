@@ -210,19 +210,27 @@ class BaseAuditModel(models.Model):
                     return f"{actor} updated alert {email_type} emails from {(old_emails)} to {(new_emails)} address(es)"
                 
             elif config_key.startswith('monitoring.'):
-                if 'Threshold' in config_key:
-                    threshold_type = {
-                        'monitoring.cpuThreshold': 'CPU usage threshold',
-                        'monitoring.ramThreshold': 'RAM usage threshold',
-                        'monitoring.diskThreshold': 'disk usage threshold',
-                        'monitoring.networkThreshold': 'network usage threshold'
-                    }.get(config_key, config_key.replace('monitoring.', '').replace('Threshold', ' threshold'))
-                    
-                    return f"{actor} changed {threshold_type} from {old_value}% to {new_value}%"
+                # Monitoring thresholds
+                monitoring_config = {
+                    'monitoring.cpuThreshold': ('CPU usage threshold', '%'),
+                    'monitoring.ramThreshold': ('RAM usage threshold', '%'),
+                    'monitoring.diskThreshold': ('Disk usage threshold', '%'),
+                    'monitoring.networkThreshold': ('Network usage threshold', '%'),
+                    'monitoring.IPpingInterval': ('IP monitoring interval', ' seconds'),
+                    'monitoring.repeatFrequency': ('Alert repeat frequency', ' minute(s)')
+                }
                 
-                elif 'repeatFrequency' in config_key:
-                    return f"{actor} changed alert repeat frequency from {old_value} to {new_value} minute(s)"
-        
+                if config_key in monitoring_config:
+                    display_name, unit = monitoring_config[config_key]
+                    return f"{actor} changed {display_name} from {old_value}{unit} to {new_value}{unit}"
+                
+            elif config_key.startswith('dataretention.'):
+                config_display = {
+                    'dataretention.monitoring': 'Monitoring data retention days',
+                    'dataretention.auditlogs': 'Audit logs data retention days'
+                }
+                display_name = config_display.get(config_key, config_key)
+                return f"{actor} changed {display_name} from {old_value} to {new_value}"
         # Generic fallback
         return f"{actor} {action.lower()}ed {model_name.lower()}"
 

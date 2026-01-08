@@ -149,8 +149,8 @@ class RolesManageView(APIView):
                 )
             
             # Check if role is assigned to users
-           
-            
+        
+          
             role.delete(request=request)
             
             return Response(

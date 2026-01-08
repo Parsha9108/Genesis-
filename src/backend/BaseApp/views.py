@@ -27,18 +27,7 @@ from BaseApp.services.webapp_services.flogged_component_services.port_flag_servi
 # CSV Validation Service Import
 from BaseApp.services.webapp_services.csv_filedata_services.csv_data_validation import csvdata_validation
 
-#alert filter imports
-from BaseApp.services.webapp_services.alert_filter_services.custom_range_filter import filtered_alerts_by_custom_range
-from BaseApp.services.webapp_services.alert_filter_services.alert_filter_option import filtered_alerts_by_options
-from BaseApp.services.webapp_services.alert_filter_services.read_alerts import make_alerts_as_read
-from BaseApp.services.webapp_services.alert_filter_services.mark_all_alerts_read import make_all_alerts_as_read
-from BaseApp.services.webapp_services.alert_filter_services.unread_alerts_count import get_unread_alerts_count
-
-#event logs filter imports
-from BaseApp.services.webapp_services.eventlogs_filter_services.filter_events_by_custom import filtered_eventlogs_by_custom_range
-from BaseApp.services.webapp_services.eventlogs_filter_services.filter_events_by_option import filtered_events_by_option
-
-from rest_framework.decorators import api_view, permission_classes,authentication_classes
+from rest_framework.decorators import api_view, permission_classes,throttle_classes,authentication_classes
 from rest_framework.permissions import AllowAny
 from django.core.cache import cache
 import logging
@@ -125,7 +114,6 @@ def handle_unknown_disk_partition_view(request,device_uuid):
 def handle_unknown_networkport_view(request,device_uuid):
     return updation_unknown_networkport(request,device_uuid)
        
-
 @api_view(['PATCH'])
 @authentication_classes([])
 @permission_classes([AllowAny])
@@ -316,7 +304,7 @@ def flagged_storage_view(request):
 def flagged_port_view(request):
     return flagged_port_devices(request)    
     
-# ===== ✅ CSV DEVICE IMPORT VIEWS =====
+# ===== CSV DEVICE IMPORT VIEWS =====
 logger = logging.getLogger("agent_monitoring")
 @api_view(["POST"])
 @authentication_classes([JWTCookieAuthentication])
@@ -401,53 +389,6 @@ def agent_verification(request):
         return Response({
             'error': 'Internal server error'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
-
-# =============================== Alert filter view =================================
-@api_view(['GET'])
-@authentication_classes([JWTCookieAuthentication])
-@permission_classes([IsAuthenticated])
-def filtered_alerts_view(request):
-   return filtered_alerts_by_custom_range(request)
-
-@api_view(['GET'])
-@authentication_classes([JWTCookieAuthentication])
-@permission_classes([IsAuthenticated])
-def alert_filter_options_view(request):
-    return filtered_alerts_by_options(request)
-
-# =============================== EventLog filter view =================================
-@api_view(['GET'])
-@authentication_classes([JWTCookieAuthentication])
-@permission_classes([IsAuthenticated])
-def filtered_eventlogs_view(request):
-    return filtered_eventlogs_by_custom_range(request)
-
-@api_view(['GET'])  
-@authentication_classes([JWTCookieAuthentication])
-@permission_classes([IsAuthenticated])
-def eventlog_filter_options_view(request):
-    return filtered_events_by_option(request)
-
-# ======================== Alert Read/Unread Views ========================
-@api_view(['PATCH'])
-@authentication_classes([JWTCookieAuthentication])
-@permission_classes([IsAuthenticated])
-def mark_alert_read_view(request):
-   return make_alerts_as_read(request)
-
-@api_view(['PATCH'])
-@authentication_classes([JWTCookieAuthentication])
-@permission_classes([IsAuthenticated])
-def mark_all_alerts_read_view(request):
-    return make_all_alerts_as_read(request)
-
-# Optional: Get unread alerts count
-@api_view(['GET'])
-@authentication_classes([JWTCookieAuthentication])
-@permission_classes([IsAuthenticated])
-def unread_alerts_count_view(request):
-   return get_unread_alerts_count(request)
 
 @api_view(['GET'])
 @authentication_classes([JWTCookieAuthentication])

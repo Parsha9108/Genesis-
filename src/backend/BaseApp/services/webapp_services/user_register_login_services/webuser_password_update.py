@@ -59,8 +59,6 @@ def update_password(request):
 
         success, message = EmailService.send_email([user.email], html_content, plain_content,subject)
 
-        # (Optionally) if user.is_first_login: set to False after first password set
-
         if success:
          return Response({'message': 'Password updated successfully'}, status=status.HTTP_200_OK)
         else:

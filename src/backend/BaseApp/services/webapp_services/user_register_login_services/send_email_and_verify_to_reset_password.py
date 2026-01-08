@@ -46,7 +46,7 @@ def sendemail_to_reset_password(request):
             user = WebUser.objects.get(email=email)
             token = generate_password_reset_token(user)
             token_encoded = quote(token)
-            reset_link = f"https://10.99.1.93/app/reset-password/{user.id}?token={token_encoded}"
+            reset_link = f"https://10.99.1.94/app/reset-password/{user.id}?token={token_encoded}"
         except Exception as e:
             return Response({'error': 'Failed to generate reset token. Please try again later.'},status=status.HTTP_500_INTERNAL_SERVER_ERROR) 
       

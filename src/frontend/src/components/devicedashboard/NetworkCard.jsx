@@ -37,7 +37,7 @@ export const NetworkCard = ({ isDarkMode, networkMap }) => {
     try {
       setLoading(true);
       const params = { interval: refreshInterval > 0 ? refreshInterval : 1 };
-      const res = await axios.get(`/api/webuser/device/network-utilization/${id}/`, { params });
+      const res = await axios.get(`/api/webapp/v1/device/network-utilization/${id}/`, { params });
 
       const rawMap = {};
       for (const iface in res.data) rawMap[iface] = res.data[iface];

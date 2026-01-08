@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Formik, Form, Field } from 'formik';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import backendApi from '../../../api/backendAxiosInstance';
 import { toast } from 'react-toastify';
 import * as Yup from 'yup';
 import GenesisLogoCard from '../GenesisLogoCard';
@@ -37,7 +37,7 @@ const ForgotPassword = () => {
   const onSubmit = async (values, { setSubmitting, resetForm }) => {
     try {
       const { captchaInput, ...apiValues } = values;
-      const res = await axios.post('/api/webuser/register/reset-password/', apiValues);
+      const res = await backendApi.post('/register/reset-password/', apiValues);
 
       if (res.status === 200 || res.status === 201) {
         toast.success('Reset Link sent to your registered email!');
