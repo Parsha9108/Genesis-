@@ -160,6 +160,9 @@ def is_valid_uuid(val):
 # models/monitoring_session.py
 
 
+class TestModel(models.Model):
+    test = models.CharField(max_length=100, blank=True, null=True)
+
 
 class PendingDeletion(models.Model):
     uuid = models.CharField(max_length=100, unique=True)
@@ -686,7 +689,7 @@ class Alert(models.Model):
     is_read=models.BooleanField(default=False)
 
     class Meta:
-        db_table = 'alerts'
+        db_table = 'BaseApp_alert'
         ordering = ['-created_at']
 
     def __str__(self):
@@ -781,4 +784,11 @@ class ApplicationCPUIO(models.Model):
     class Meta:
         ordering = ['-cpu_average']
         verbose_name = "Application CPU"
-        verbose_name_plural = "Application CPU"        
+        verbose_name_plural = "Application CPU"       
+
+
+class LicenseState(models.Model):
+    id = models.PositiveSmallIntegerField(primary_key=True, default=1)
+    db_fingerprint = models.CharField(max_length=64)
+    activated_at = models.DateTimeField(auto_now_add=True)
+ 

@@ -2,7 +2,7 @@
 from rest_framework import status
 from rest_framework.response import Response
 from django.conf import settings
-from BaseApp.models import WebUser
+from BaseApp.models.models import WebUser
 import jwt,datetime
 from urllib.parse import quote
 import logging

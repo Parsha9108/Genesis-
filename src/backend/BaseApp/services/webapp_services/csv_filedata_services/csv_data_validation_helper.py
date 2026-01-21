@@ -3,7 +3,7 @@ import logging
 import csv
 from django.core.validators import validate_ipv4_address, validate_ipv6_address
 from django.core.exceptions import ValidationError
-from BaseApp.models import Agent, Device, IPAddress
+from BaseApp.models.models import Agent, Device, IPAddress
 
 logger = logging.getLogger(__name__)
 

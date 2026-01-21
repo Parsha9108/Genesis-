@@ -62,3 +62,6 @@ class PermissionSet(models.Model):
     def __str__(self):
         return f'{self.role} - {self.module}'
 
+class DemoModel(models.Model):
+    name = models.CharField(max_length=100)
+    created_at =models.DateTimeField()

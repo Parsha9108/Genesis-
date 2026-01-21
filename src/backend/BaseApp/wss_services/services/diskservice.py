@@ -12,7 +12,7 @@ from django.conf import settings
 from asgiref.sync import sync_to_async
 
 
-from ...models import (
+from BaseApp.models.models import (
     Storage, Partition, DiskMonitoring, PartitionMonitoring,
     MonitoringCheckpoint, Device
 )

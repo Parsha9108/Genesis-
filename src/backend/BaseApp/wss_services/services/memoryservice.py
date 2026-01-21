@@ -10,7 +10,7 @@ from django.utils.timezone import now
 from django.db import transaction
 from asgiref.sync import sync_to_async
 
-from ...models import Memory, MemoryMonitoring, convert_bytes_to_human_readable
+from BaseApp.models.models import Memory, MemoryMonitoring, convert_bytes_to_human_readable
 from .alertservice import AlertService
 from .eventservice import EventService
 from django.conf import settings

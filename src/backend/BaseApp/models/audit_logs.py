@@ -1,5 +1,5 @@
 from django.db import models
-from BaseApp.models import *
+# from BaseApp.models import *
 import uuid
 
 class AuditLog(models.Model):

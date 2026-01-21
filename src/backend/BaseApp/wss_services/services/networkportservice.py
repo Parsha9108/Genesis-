@@ -8,7 +8,7 @@ from asgiref.sync import sync_to_async
 from django.conf import settings
 
 
-from ...models import NIC, Port, NetworkPortMonitoring
+from BaseApp.models.models import NIC, Port, NetworkPortMonitoring
 from .alertservice import AlertService
 from .unknown_handler import UnknownEntitiesService
 from .eventservice import EventService

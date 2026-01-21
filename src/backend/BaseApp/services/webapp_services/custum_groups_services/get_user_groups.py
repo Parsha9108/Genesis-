@@ -2,7 +2,7 @@
 from rest_framework.response import Response
 from django.utils import timezone
 from ....serializer import UserGroupsSerializer
-from ....models import Group
+from BaseApp.models.models import Group
 
 def get_user_groups(request):
     """Get all groups for the authenticated user using serializers"""

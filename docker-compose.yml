@@ -83,6 +83,7 @@ services:
       - .env
     environment:
       - DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
+      - GENESIS_DEPLOYMENT_ID=DEP-ACME-001 
     command: >
       sh -c "
       echo '=== Starting Backend Initialization ===' &&
@@ -188,8 +189,8 @@ services:
       - ./nginxconf/sslcerts:/etc/nginx/ssl
       - frontend_dist:/var/www/react/app/dist
     ports:
-      - "${NGINX_PORT_HTTPS}:443"
-      - "${NGINX_PORT_HTTP}:80"
+      - "${NGINX_PORT_HTTPS}:8443"
+      - "${NGINX_PORT_HTTP}:8080"
     networks:
       - backend_net
 

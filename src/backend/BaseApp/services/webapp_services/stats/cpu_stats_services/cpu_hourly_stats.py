@@ -2,7 +2,7 @@ from rest_framework.response import Response
 from django.core.cache import cache
 from django.utils import timezone
 import logging
-from .....models import CPU
+from BaseApp.models.models import CPU
 from ..helper_services_to__handle_stats.get_resource import get_resource_or_404
 from ..helper_services_to__handle_stats.unified_response import build_unified_response
 from BaseApp.services.webapp_services.stats.unified_metric_stats import (

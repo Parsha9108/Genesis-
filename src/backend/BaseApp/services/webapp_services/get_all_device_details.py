@@ -1,5 +1,5 @@
 from rest_framework.response import Response
-from BaseApp.models import Device,Agent,IPAddress
+from BaseApp.models.models import Device,Agent,IPAddress
 from BaseApp.serializer import WebAgentSerializer,WebAgentserializer
 from rest_framework import status
 from django.db.models import Q

@@ -4,7 +4,7 @@ from django.utils.timezone import localtime
 from django.db.models import Avg
 from django.db.models.functions import Cast
 from django.db.models import FloatField
-from ...models import CpuMonitoring
+from BaseApp.models.models import CpuMonitoring
 
 
 def cpu_utilization(request, uuid):

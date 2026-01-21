@@ -1,5 +1,5 @@
 import logging
-from BaseApp.models import ApplicationDiskIO,Storage, Device
+from BaseApp.models.models import ApplicationDiskIO,Storage, Device
 
 logger = logging.getLogger("agent_monitoring")
 

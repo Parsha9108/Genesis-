@@ -1,7 +1,7 @@
 
 from rest_framework.response import Response
 from rest_framework import status
-from BaseApp.models import WebUser
+from BaseApp.models.models import WebUser
 from rest_framework.response import Response
 from rest_framework import status
 from django.conf import settings

@@ -1,13 +1,13 @@
 import email
 import webbrowser
 from rest_framework import serializers
-from .models import Agent, Application
+from BaseApp.models.models import Agent, Application
 from rest_framework import serializers
 from oauth2_provider.models import Application
-from .models import Agent
 from rest_framework import serializers
 from django.core.validators import validate_ipv4_address, validate_ipv6_address
-from .models import *
+from BaseApp.models.models import *
+from BaseApp.models.roles import *
 from BaseApp.models.ipmonitor import IPMonitor,IPMonitorCheckpoint
 from django.contrib.auth.hashers import make_password
 import logging
@@ -407,7 +407,7 @@ class WebAgentserializer(serializers.ModelSerializer):
         fields = ["uuid", "os", "os_version", "hostname", "device","status","uptime_started_at", "last_activated_at","last_seen","last_uptime_duration","device"]  
         
 from rest_framework import serializers
-from .models import Group, GroupAgentAssignment, Agent, WebUser
+from BaseApp.models.models import Group, GroupAgentAssignment, Agent, WebUser
 
 
 class GroupAgentAssignmentSerializer(serializers.ModelSerializer):

@@ -8,7 +8,7 @@ from django.core.cache import cache
 from django.conf import settings
 from asgiref.sync import sync_to_async
 
-from ...models import Event, Agent
+from BaseApp.models.models import Event, Agent
 
 logger = logging.getLogger("agent_monitoring")
 

@@ -1,6 +1,6 @@
 from datetime import timedelta, datetime
 from django.utils.timezone import now, localtime, is_naive, make_aware, get_current_timezone
-from ....models import CpuMonitoring, MemoryMonitoring, DiskMonitoring
+from BaseApp.models.models  import CpuMonitoring, MemoryMonitoring, DiskMonitoring
 from dateutil.relativedelta import relativedelta
 from django.utils.dateparse import parse_datetime
 from django.db.models import Avg, Q, Case, When, FloatField, Count, Value

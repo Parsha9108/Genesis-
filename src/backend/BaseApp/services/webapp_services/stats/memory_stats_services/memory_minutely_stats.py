@@ -1,7 +1,7 @@
 from django.utils import timezone
 import logging
 from rest_framework.response import Response
-from .....models import Memory
+from BaseApp.models.models  import Memory
 from ..helper_services_to__handle_stats.get_resource import get_resource_or_404
 from ..helper_services_to__handle_stats.unified_response import build_unified_response
 from BaseApp.services.webapp_services.stats.unified_metric_stats import get_memory_minutely_stats

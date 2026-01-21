@@ -7,7 +7,7 @@ from channels.db import database_sync_to_async
 from django.utils.timezone import now, make_aware, get_current_timezone
 from django.core.cache import cache
 from django.conf import settings
-from ...models import Agent, Event, MonitoringCheckpoint, Device
+from BaseApp.models.models import Agent, Event, MonitoringCheckpoint, Device
 from .eventservice import EventService
 from .alertservice import AlertService
 from .memoryservice import MemoryService

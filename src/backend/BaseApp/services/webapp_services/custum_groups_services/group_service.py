@@ -1,7 +1,7 @@
 # views.py
 from rest_framework.response import Response    
 from django.db import transaction
-from ....models import Group, GroupAgentAssignment, Agent
+from BaseApp.models.models import Group, GroupAgentAssignment, Agent
 
 def save_user_groups(request):
     """Save groups using foreign key relationships"""

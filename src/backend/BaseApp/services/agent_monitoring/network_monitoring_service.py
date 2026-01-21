@@ -6,7 +6,7 @@ from asgiref.sync import async_to_sync,sync_to_async
 from .event_service import EventService
 from .alert_service import AlertService
 from .handle_unknown import _handle_unknown_entities
-from BaseApp.models import Device
+from BaseApp.models.models import Device
 logger = logging.getLogger("agent_monitoring")
 
 class NetworkMonitoringService:

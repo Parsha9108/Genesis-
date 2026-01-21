@@ -3,7 +3,7 @@ from django.db.models import Avg, FloatField
 from django.db.models.functions import Cast
 from django.http import JsonResponse, HttpResponseBadRequest
 from datetime import timedelta
-from ...models import NetworkPortMonitoring, Port
+from BaseApp.models.models import NetworkPortMonitoring, Port
  
 def network_utilization(request, uuid):
     interval = request.GET.get('interval')

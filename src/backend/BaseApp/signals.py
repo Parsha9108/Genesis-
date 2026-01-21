@@ -1,10 +1,11 @@
 from django.db.models.signals import post_save
 from django.db import transaction
 from django.dispatch import receiver
-from .models import (
+from BaseApp.models.models import (
     MonitoringCheckpoint, CpuMonitoring, MemoryMonitoring,
     DiskMonitoring, PartitionMonitoring, NetworkPortMonitoring, Alert,Event,Agent,Device,WebUser,
     ApplicationDiskIO, ApplicationMemoryIO, ApplicationCPUIO,MonitoringCheckpoint,Port,Storage,Partition,WebUser)
+
 from .models.roles import PermissionSet
 import logging
 from channels.layers import get_channel_layer

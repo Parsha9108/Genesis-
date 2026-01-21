@@ -5,7 +5,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from django.db import IntegrityError
 from BaseApp.utils import JWTCookieAuthentication
-from BaseApp.models import WebUser,Role
+from BaseApp.models.models import WebUser,Role
 from BaseApp.serializer import WebUserSerializer
 import logging
 from django.db import transaction

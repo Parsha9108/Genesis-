@@ -1,6 +1,6 @@
 import  { useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
-import backendApi from '../../frontend/src/api/backendAxiosInstance';
+import backendApi from './api/backendAxiosInstance';
 import { useAuth } from './Contexts/AuthContext';
 
 

@@ -1,6 +1,6 @@
 from django.utils import timezone
 from django.db import models
-from BaseApp.models import Port
+from BaseApp.models.models import Port
 
 
 class PortFlagService:

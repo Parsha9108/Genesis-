@@ -1,6 +1,6 @@
 from rest_framework.response import Response    
 from rest_framework import status
-from .....models import CPU, Memory, Storage
+from BaseApp.models.models  import CPU, Memory, Storage
 from logging import getLogger
 logger = getLogger("agent_monitoring")
 

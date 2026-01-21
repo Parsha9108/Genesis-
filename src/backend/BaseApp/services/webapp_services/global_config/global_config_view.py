@@ -2,7 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.db import transaction
-from ....models import GlobalConfig
+from BaseApp.models.global_config import GlobalConfig
 import logging
 import json
 from BaseApp.utils import check_permission

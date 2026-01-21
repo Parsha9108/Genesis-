@@ -16,7 +16,7 @@ from oauth2_provider.models import AccessToken, Application
 from django.utils.timezone import now
 from django.contrib.auth.hashers import make_password, check_password
 from asgiref.sync import sync_to_async,async_to_sync
-from BaseApp.models import * 
+from BaseApp.models.models import * 
 import json
 import logging
 from django.views.decorators.csrf import csrf_exempt

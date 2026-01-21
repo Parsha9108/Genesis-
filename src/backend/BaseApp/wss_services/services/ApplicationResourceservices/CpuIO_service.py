@@ -1,5 +1,5 @@
 import logging
-from BaseApp.models import ApplicationCPUIO, CPU
+from BaseApp.models.models import ApplicationCPUIO, CPU
 
 logger = logging.getLogger("agent_monitoring")
 

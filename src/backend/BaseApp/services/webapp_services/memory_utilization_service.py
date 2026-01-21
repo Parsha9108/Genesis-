@@ -3,7 +3,7 @@ from django.db.models import Avg, FloatField
 from django.db.models.functions import Cast
 from django.http import JsonResponse, HttpResponseBadRequest
 from datetime import timedelta
-from BaseApp.models import MemoryMonitoring
+from BaseApp.models.models import MemoryMonitoring
 import sys
 
 

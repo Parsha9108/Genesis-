@@ -79,6 +79,7 @@ INSTALLED_APPS = [
     'daphne',
     'channels',
     'oauth2_provider',
+    'BaseApp',
     'django_celery_beat',
     'django_filters',
     'rest_framework',
@@ -88,7 +89,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'BaseApp.apps.BaseappConfig',
+    # 'BaseApp.apps.BaseappConfig',
 ]
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
@@ -245,7 +246,6 @@ MONITORING_HANDLER_CONFIG = {
 
 # ==========================================================================================
 
-LICENSE_PRIVATE_KEY_PATH = os.path.join(BASE_DIR, "Keys/private.key")
 LICENSE_PUBLIC_KEY_PATH = os.path.join(BASE_DIR, "Keys/public.key")
 
 #  Helper function to get list from environment
@@ -258,13 +258,13 @@ DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 HOST_IP = os.environ.get('HOST_IP', 'localhost,192.168.100.91')
 # SECRET_KEY = os.environ.get('SECRET_KEY')
 # Get lists from comma-separated environment variables
-ALLOWED_HOSTS = get_list_from_env('ALLOWED_HOSTS', '10.99.1.94,localhost,127.0.0.1,0.0.0.0,backend')
+ALLOWED_HOSTS = get_list_from_env('ALLOWED_HOSTS', '10.99.1.95,localhost,127.0.0.1,0.0.0.0,backend')
 
 CORS_ALLOWED_ORIGINS = get_list_from_env('CORS_ALLOWED_ORIGINS', 
     'https://localhost,http://localhost:3000,https://127.0.0.1,httpS://192.168.100.91')
 
 CSRF_TRUSTED_ORIGINS = get_list_from_env('CSRF_TRUSTED_ORIGINS',
-    'https://localhost,https://127.0.0.1,https://10.99.1.93')
+    'https://localhost,https://127.0.0.1,https://10.99.1.95')
 
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = False

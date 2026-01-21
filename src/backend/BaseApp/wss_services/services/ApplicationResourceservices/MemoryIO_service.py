@@ -1,5 +1,5 @@
 import logging
-from BaseApp.models import ApplicationMemoryIO, Memory
+from BaseApp.models.models import ApplicationMemoryIO, Memory
 
 logger = logging.getLogger("agent_monitoring")
 

@@ -6,7 +6,7 @@ from django.core.mail import get_connection
 from smtplib import SMTPException
 
 logger = logging.getLogger("agent_monitoring")
-from ....models import GlobalConfig
+from BaseApp.models.global_config import GlobalConfig
 
 class EmailService:
     @staticmethod

@@ -17,7 +17,7 @@ from BaseApp.wss_services.base_consumer import BaseConsumer
 from BaseApp.wss_services.services.agent_auth import AuthenticationMixin
 from BaseApp.wss_services.services.mondata_handler import MonitoringHandler
 from BaseApp.wss_services.services.eventservice import EventService
-from ..models import Event
+from BaseApp.models.models import Event
 
 logger = logging.getLogger("agent_monitoring")
 

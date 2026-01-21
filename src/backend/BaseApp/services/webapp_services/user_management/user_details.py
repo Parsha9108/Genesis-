@@ -1,7 +1,7 @@
 from django.http import JsonResponse
 from django.conf import settings
 import jwt, json
-from BaseApp.models import WebUser
+from BaseApp.models.models import WebUser
 from rest_framework.decorators import api_view, permission_classes,throttle_classes,authentication_classes
 from BaseApp.utils import JWTCookieAuthentication
 from rest_framework.permissions import IsAuthenticated

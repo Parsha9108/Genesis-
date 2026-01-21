@@ -2,7 +2,7 @@ import logging
 import json
 from typing import Tuple, Optional
 from asgiref.sync import sync_to_async
-from ...models import Agent
+from BaseApp.models.models import Agent
 from .eventservice import EventService
  
 logger = logging.getLogger("agent_monitoring")

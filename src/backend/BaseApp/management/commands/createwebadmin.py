@@ -49,7 +49,7 @@ class Command(BaseCommand):
                 else:
                     self.stdout.write(self.style.WARNING('Passwords do not match. Please try again.'))
 
-            WebUser.objects.create(
+            wu = WebUser.objects.create(
                 role = role,
                 username=username,
                 email=email,
@@ -58,7 +58,7 @@ class Command(BaseCommand):
                 is_email_verified = True,
                 is_email_override=True,
             )
-            self.stdout.write(self.style.SUCCESS(f'Successfully created web admin user: {username}'))
+            self.stdout.write(self.style.SUCCESS(f'Successfully created web admin user: {username}\n{wu}'))
             
         except Exception as e:
             raise CommandError(f'Error creating web admin user: {e}')

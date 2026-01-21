@@ -35,7 +35,7 @@ from rest_framework.response import Response
 from asgiref.sync import async_to_sync
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
-from BaseApp.models import PendingDeletion
+from BaseApp.models.models import PendingDeletion
 # cpu stats service imports
 from BaseApp.services.webapp_services.stats.cpu_stats_services.cpu_minutely_stats import cpu_minutely_stats
 from BaseApp.services.webapp_services.stats.cpu_stats_services.cpu_hourly_stats import cpu_hourly_stats

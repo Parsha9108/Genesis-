@@ -1,9 +1,10 @@
 from django.contrib import admin
 from .models.models import *
 from .models.roles import *
-from .models.audit_logs import AuditLog
+from BaseApp.models.audit_logs import AuditLog
 
 from .models.global_config import *
+from BaseApp.models.demo import Demo,DemoCheckpoint
 from BaseApp.models.ipmonitor import IPMonitor,IPMonitorCheckpoint
 admin.site.register(Agent)
 admin.site.register(Device)
@@ -32,11 +33,11 @@ admin.site.register(ApplicationDiskIO)
 admin.site.register(Role)
 admin.site.register(PermissionSet)
 admin.site.register(AuditLog)
-
 admin.site.register(GlobalConfig)
 admin.site.register(IPMonitor)
 admin.site.register(IPMonitorCheckpoint)
-
+admin.site.register(Demo)
+admin.site.register(DemoCheckpoint)
 @admin.register(MonitoringCheckpoint)
 class MonitoringCheckpointAdmin(admin.ModelAdmin):
     # 1. Point to the custom method name instead of the field name

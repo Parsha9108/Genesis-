@@ -1,6 +1,6 @@
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
-from ....models import Group
+from BaseApp.models.models import Group
 
 def delete_user_group(request, group_id):
     """Delete group and all related agent assignments automatically"""

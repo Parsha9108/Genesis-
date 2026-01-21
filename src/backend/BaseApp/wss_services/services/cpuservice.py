@@ -8,7 +8,7 @@ import asyncio
 from django.core.cache import cache
 from django.db import transaction
 
-from ...models import CPU, CpuMonitoring
+from BaseApp.models.models import CPU, CpuMonitoring
 from .alertservice import AlertService
 from .utils import now, sync_to_async
 from django.conf import settings
